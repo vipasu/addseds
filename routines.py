@@ -497,57 +497,90 @@ def wprp_fraction(gals, set_desc):
 
     return combined_actual, combined_pred
 
-def plot_richness_scatter(gals, name):
-    counts_a, scatter_a = richness_scatter(gals[gals['ssfr'] < -11.0])
-    counts_p, scatter_p = richness_scatter(gals[gals['pred'] < -11.0])
+
+def plot_richness_scatter(gals, name, full_set):
+    log_counts_a, scatter_a = richness_scatter(gals[gals['ssfr'] < -11.0], full_set)
+    log_counts_p, scatter_p = richness_scatter(gals[gals['pred'] < -11.0], full_set)
     #fig1 = plt.figure(figsize=(12,7))
-    #frame1=fig1.add_axes((.1,.3,.8,.6))   
+    #frame1=fig1.add_axes((.1,.3,.8,.6))
     #plt.subplot(121)
-    #plt.semilogy(counts_a, scatter_a, 'o', label='actual', color='k', markersize=7)
-    #plt.semilogy(counts_p, scatter_p, 'o', label='predicted', color=red_col, markersize=7)
-    #plt.title('Scatter in richness ' + name)
-    #plt.xlabel('Number of red satellites')
-    #plt.ylabel('Scatter in halo masses')
-    #plt.legend(loc='best')
-    #plt.grid()
-    
+    plt.plot(log_counts_a, scatter_a, 'o', label='actual', color='k', markersize=7)
+    plt.plot(log_counts_p, scatter_p, 'o', label='predicted', color=red_col, markersize=7)
+    plt.title('Scatter in richness ' + name)
+    plt.xlabel('Log Number of red satellites')
+    plt.xlim(-.1,2.6)
+    plt.ylim(0, np.max([np.nanmax(scatter_a),np.nanmax(scatter_p)]) +.1)
+    plt.ylabel('Scatter in halo masses')
+    plt.legend(loc='best')
+    plt.grid(True)
+
     #plt.subplot(122)
-    #frame2=fig1.add_axes((.1,.1,.8,.2))     
-    series_a = pd.Series(scatter_a, index=counts_a)
-    series_p = pd.Series(scatter_p, index=counts_p)
+    #frame2=fig1.add_axes((.1,.1,.8,.2))
+    #series_a = pd.Series(scatter_a, index=counts_a)
+    #series_p = pd.Series(scatter_p, index=counts_p)
     # scat_diff = (series_a - series_p)/series_a
-    scat_ratio = series_p/series_a
+    #scat_ratio = series_p/series_a
     #plt.plot(scat_diff.index, scat_diff.values, 'ob')
-    plt.plot(scat_ratio.index, scat_ratio.values, 'ob')
-    plt.title("Scatter ratios in richness for actual vs predicted")
-    plt.axhline(0)
-    plt.ylabel('Error')
-    plt.xlabel('Number of red satellites')
+    #plt.plot(scat_ratio.index, scat_ratio.values, 'ob')
+    #plt.title("Scatter ratios in richness for actual vs predicted")
+    #plt.axhline(0)
+    #plt.ylabel('Error')
+    #plt.xlabel('Number of red satellites')
     return
 
 
-def richness_scatter(gals):
+def richness_scatter(gals, full):
 
     mass_id_dict = {}
-    hosts = gals[gals['upid'] == -1]
+    hosts = full[full['upid'] == -1]
     for _, host in hosts.iterrows():
         mass_id_dict[host['id']] = host['mvir']
-        
+
     subs = gals[gals['upid'] != -1]
-    halo_children = subs.groupby('upid').count()
-    halo_ids = halo_children.index.values
-    halo_masses = pd.Series(halo_ids).map(mass_id_dict)
-    
-    num_children = pd.Series(halo_children.values.T[0])
-    df_m_count = pd.DataFrame({'count' : num_children, 'masses': halo_masses})
-    
-    counts_scatter = df_m_count.groupby('count').std()
-    counts = counts_scatter.index.values
-    scatter = counts_scatter.values.flatten()
+    halo_children = subs.groupby('upid').count() # number of satellites which share the same host
+    halo_ids = halo_children.index.values # id of the host
+    halo_masses = pd.Series(halo_ids).map(mass_id_dict) # find the mass of the
 
-    return counts, scatter
+    num_children = halo_children.values.T[0]
+    #plt.plot(num_children)
+    plt.ylim(0,10)
+
+    log_num_children = np.log10(num_children)
+
+    # Potential to make more generalized version
+    # Main priority is to be able to distinguish between log(2)
+    # and log(3)
+    nbins = 26
+    bins = np.linspace(-0.05,2.45,nbins)
+    bin_ids = np.digitize(log_num_children, bins, right=True)
+    bincounts = np.bincount(bin_ids) # to know length of data in each bin
+
+    scatters = np.ones(nbins-1) * np.nan
+    nb_in_use = len(bincounts)
+    # Relatively inefficient.. but doesn't require multidimensional arrays of different lengths
+    for i, count in zip(range(1,nb_in_use+1), bincounts[1:]):
+        if count == 0:
+            continue
+        data = np.zeros(count+1)
+        j = 0
+        for bin_id,mass in zip(bin_ids, halo_masses):
+            if bin_id == i:
+                data[j] =  mass
+                j += 1
+        data = pd.Series(data)
+        scatters[i-1] = data.std() /data.mean()
+
+    return (bins[1:] + bins[:-1])/2, scatters
 
 
+def correlation_ratio(d_test, name):
+    c_actual, c_pred = wprp_fraction(d_test, name + 'mvir + dist')
+    plt.semilogx(r, c_actual, label='actual', color='k')
+    plt.plot(r, c_pred, label='predicted', color=blue_col)
+    plt.title('wprp quenched vs starforming ' + name)
+    plt.xlabel('r')
+    plt.ylabel('wp_quenched/wp_starforming')
+    plt.legend()
 
 # TODO: test by using test_gals == d_gals
 def plot_density_profile(d0, d_gals, test_gals, name):
