@@ -4,6 +4,12 @@ from fast3tree import fast3tree
 from scipy.stats import chisquare
 from sklearn import preprocessing
 import seaborn as sns
+sns.set_context('poster')
+#sns.set(font_scale=3, style='whitegrid')
+sns.set_style('whitegrid')
+#plt.rc('font', family='serif', size=40)
+#plt.yaxis.label.set_size(25)
+#plt.xaxis.label.set_size(25)
 from CorrelationFunction import projected_correlation
 from sklearn.tree import DecisionTreeRegressor
 from matplotlib import cm
@@ -398,9 +404,9 @@ def plot_wprp(actual_xis, actual_cov, pred_xis, pred_cov, set_desc, num_splits):
         plt.errorbar(r, xi_pred, var1, fmt='--o', color=colors[i], alpha=0.6)
 
     title = 'wp(rp) for ' + set_desc
-    plt.title(title)
+    #plt.title(title)
     plt.xlabel('r')
-    plt.ylabel('wp')
+    plt.ylabel('w_p(r_p)')
     plt.legend()
 
     # Fits power laws of the form c(x^-1.5) + y0
@@ -506,11 +512,11 @@ def plot_richness_scatter(gals, name, full_set):
     #plt.subplot(121)
     plt.plot(log_counts_a, scatter_a, 'o', label='actual', color='k', markersize=7)
     plt.plot(log_counts_p, scatter_p, 'o', label='predicted', color=red_col, markersize=7)
-    plt.title('Scatter in richness ' + name)
+    #plt.title('Scatter in richness ' + name)
     plt.xlabel('Log Number of red satellites')
     plt.xlim(-.1,2.6)
     plt.ylim(0, np.max([np.nanmax(scatter_a),np.nanmax(scatter_p)]) +.1)
-    plt.ylabel('Scatter in halo masses')
+    plt.ylabel('Scatter in M_halo')
     plt.legend(loc='best')
     plt.grid(True)
 
@@ -577,9 +583,9 @@ def correlation_ratio(d_test, name):
     c_actual, c_pred = wprp_fraction(d_test, name + 'mvir + dist')
     plt.semilogx(r, c_actual, label='actual', color='k')
     plt.plot(r, c_pred, label='predicted', color=blue_col)
-    plt.title('wprp quenched vs starforming ' + name)
+    #plt.title('wprp quenched vs starforming ' + name)
     plt.xlabel('r')
-    plt.ylabel('wp_quenched/wp_starforming')
+    plt.ylabel('w_p, Q / w_p, SF')
     plt.legend()
 
 # TODO: test by using test_gals == d_gals
@@ -761,45 +767,45 @@ def plot_HOD(d0, test_gals, name, msmin, msmax=None):
     total_occupants_pred = num_pred_blue_s + num_pred_red_s + num_pred_red_c + num_pred_blue_c
     p_scale = 8./7
 
-    plt.title('Combined HOD (' + name + ')')
+    #plt.title('Combined HOD (' + name + ')')
     plt.loglog(centers, (total_occupants_actual)/num_halos, color='k', label='actual')
     # Double the number of occupants because our test sample was half the catalog
     plt.loglog(centers, p_scale * (total_occupants_pred)/num_halos, color='k', label='pred', alpha = 0.6)
-    plt.xlabel('host mass')
-    plt.ylabel('<number of centrals + satellites>')
+    plt.xlabel('M_halo')
+    plt.ylabel('<N_tot>')
     plt.legend(loc='best')
 
     plt.subplot(222)
-    plt.title('HOD red v blue (' + name + ')')
+    #plt.title('HOD red v blue (' + name + ')')
     # comparison of red and blues
     plt.loglog(centers, (num_actual_blue_s + num_actual_blue_c)/num_halos, color=blue_col, label='actual')
     plt.loglog(centers, (num_actual_red_s + num_actual_red_c)/num_halos, color=red_col, label='actual')
     plt.loglog(centers, p_scale * (num_pred_blue_s + num_pred_blue_c)/num_halos, color=blue_col, label='predicted', alpha=0.6)
     plt.loglog(centers, p_scale * (num_pred_red_s + num_pred_red_c)/num_halos, color=red_col, label='predicted', alpha=0.6)
-    plt.xlabel('host mass')
-    plt.ylabel('<number of centrals + satellites>')
+    plt.xlabel('M_halo')
+    plt.ylabel('<N_tot>')
     plt.legend(loc='best')
 
     plt.subplot(223)
-    plt.title('HOD red v blue centrals (' + name + ')')
+    #plt.title('HOD red v blue centrals (' + name + ')')
     plt.loglog(centers, (num_actual_blue_c)/num_halos, color=blue_col, label='actual')
     plt.loglog(centers, (num_actual_red_c)/num_halos, color=red_col, label='actual')
     plt.loglog(centers, p_scale * (num_pred_blue_c)/num_halos, color=blue_col, label='predicted', alpha=0.6)
     plt.loglog(centers, p_scale * (num_pred_red_c)/num_halos, color=red_col, label='predicted', alpha=0.6)
     #plt.xscale('symlog')
     #plt.yscale('symlog')
-    plt.xlabel('host mass')
-    plt.ylabel('<number of centrals>')
+    plt.xlabel('M_halo')
+    plt.ylabel('<N_cen>')
     plt.legend(loc='best')
 
     plt.subplot(224)
-    plt.title('HOD red v blue satellites (' + name + ')')
+    #plt.title('HOD red v blue satellites (' + name + ')')
     plt.loglog(centers, (num_actual_blue_s)/num_halos, color=blue_col, label='actual')
     plt.loglog(centers, (num_actual_red_s )/num_halos, color=red_col, label='actual')
     plt.loglog(centers, p_scale * (num_pred_blue_s)/num_halos, color=blue_col, label='predicted', alpha=0.6)
     plt.loglog(centers, p_scale * (num_pred_red_s)/num_halos, color=red_col, label='predicted', alpha=0.6)
-    plt.xlabel('host mass')
-    plt.ylabel('<number of satellites>')
+    plt.xlabel('M_halo')
+    plt.ylabel('<N_sat>')
 
     plt.legend(loc='best')
     plt.tight_layout()
@@ -837,11 +843,11 @@ def plot_p_red(masses, ytest, y_hat, name):
     plt.plot(center, p_red_test, label='actual', color='k', alpha=0.6)
     plt.plot(center, p_red_predicted, label='predicted', color='red', alpha=0.8)
     title = 'Fraction of Quenched Galaxies {}'.format(name)
-    plt.title(title)
+    #plt.title(title)
     plt.legend(loc='best')
-    plt.xlabel('Mstar')
+    plt.xlabel('M_*')
     plt.gca().set_xscale("log")
-    plt.ylabel('Fraction of Quenched Galaxies')
+    plt.ylabel('F_Q')
     plt.ylim(0,1.1)
     plt.savefig(image_prefix + title + png)
 
