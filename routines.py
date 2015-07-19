@@ -8,6 +8,7 @@ import seaborn as sns
 #sns.set(font_scale=3, style='whitegrid')
 from CorrelationFunction import projected_correlation
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.metrics import explained_variance_score
 from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.optimize import curve_fit
@@ -162,7 +163,7 @@ def calculate_r_hill(halo_set, massive_halos, rmax=5):
 
     r_hills = []
 
-    # Iterate over the halos and compare 
+    # Iterate over the halos and compare
     for i, halo in halo_set.iterrows():
         if i % 5000 == 0:
             print i
@@ -383,14 +384,13 @@ def plot_kdes(predicted, actual, name):
     Individual smooth histograms of ssfr distribution. Ensures that the number
     of red vs blue galaxies is reasonable.
     """
-    fig = plt.figure()
     with sns.color_palette("pastel"):
-        sns.kdeplot(actual, shade=True, label='input')
-        sns.kdeplot(predicted, shade=True, label='Predicted')
+        sns.kdeplot(actual, shade=True, label='input', clip=(-14,-8.5))
+        sns.kdeplot(predicted, shade=True, label='Predicted', clip=(-14,-8.5))
         title = 'KDE of ssfr ({})'.format(name)
-        plt.title(title)
-        plt.xlabel('Scaled ssfr Value')
-        plt.savefig(image_prefix + title + png)
+        #plt.title(title)
+        plt.xlabel('sSFR')
+        #plt.savefig(image_prefix + title + png)
 
 
 def cross_scatter_plot(predicted, actual, name=''):
@@ -398,13 +398,13 @@ def cross_scatter_plot(predicted, actual, name=''):
     Heatmap of how well individual predictions do. Correlation coefficient r
     is included in the plot.
     """
-    lims = [min(actual), max(actual)]
+    lims = [-13, -9]
     print lims
     g = sns.jointplot(actual, predicted, color=sns.xkcd_rgb['jade'], xlim=lims,
-            ylim=lims, kind='hex')
+            ylim=lims, kind='hex', size=10)
     g.set_axis_labels("Actual", "Predicted")
     plt.colorbar()
-    plt.savefig(image_prefix + 'Scatter ' + name + png)
+    #plt.savefig(image_prefix + 'Scatter ' + name + png)
 
 
 def sample_model(model, name, Xtrain, ytrain, Xtest, ytest, num_samples=500):
@@ -426,6 +426,7 @@ def sample_model(model, name, Xtrain, ytrain, Xtest, ytest, num_samples=500):
 
     cross_scatter_plot(results, s, name)
     # Scatterplot comparison between actual and predicted
+    print "Explained variance score is: ", explained_variance_score(results, s)
 
     plt.show()
 
@@ -497,7 +498,7 @@ def plot_wprp(actual_xis, actual_cov, pred_xis, pred_cov, set_desc, num_splits):
     plt.subplot(122)
     sns.barplot(np.arange(1,num_splits + 2), np.array(normalizations), palette=colors)
 
-    plt.savefig(image_prefix + title + png)
+    #plt.savefig(image_prefix + title + png)
     plt.show()
 
     return
@@ -892,7 +893,7 @@ def plot_p_red(masses, ytest, y_hat, name):
     Additionally, the distribution of color is plotted vs mvir for both the
     predicted and actual ssfr's.
     """
-    nbins = 15
+    nbins = 14
     bins = np.logspace(np.log10(np.min(masses)), np.log10(np.max(masses)), nbins)
 
 
@@ -923,20 +924,20 @@ def plot_p_red(masses, ytest, y_hat, name):
     plt.ylabel('$F_Q$')
     plt.ylim(0,1.1)
     #plt.xlim(1e10, 1e13)
-    plt.savefig(image_prefix + title + png)
+    #plt.savefig(image_prefix + title + png)
 
-    lm = np.log10(masses)
+    lm = pd.Series(np.log10(masses), name='$M_*$')
     plt.figure(2)
     sns.kdeplot(lm, ytest, shade=True)
     title = 'Heatmap of mstar vs ssfr (Actual) ({})'.format(name)
     plt.ylim(-13,-8)
-    plt.title(title)
+    #plt.title(title)
     #plt.gca().set_xscale("log")
 
     plt.figure(3)
     sns.kdeplot(lm, y_hat, shade=True)
-    title = 'Heatmap of mstar vs ssfr (Predicted) ({})'.format(name)
-    plt.title(title)
+    #title = 'Heatmap of mstar vs ssfr (Predicted) ({})'.format(name)
+    #plt.title(title)
     #plt.gca().set_xscale("log")
 
     plt.show()
