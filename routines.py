@@ -17,7 +17,8 @@ from collections import defaultdict
 import os
 import errno
 import pandas as pd
-import matplotlib.ticker
+import matplotlib.ticker as ticker
+import matplotlib.gridspec as gridspec
 
 
 sns.set(font_scale=3.5, rc={'xtick.labelsize': 25,'ytick.labelsize': 25,'legend.fontsize': 25})
@@ -465,9 +466,9 @@ def plot_wprp(actual_xis, actual_cov, pred_xis, pred_cov, set_desc, num_splits):
         plt.errorbar(r, xi_pred, var1, fmt='--o', color=colors[i], alpha=0.6)
 
 
-    y_format = matplotlib.ticker.FuncFormatter(y_tick_formatter)
-    ax.yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
-    ax.xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
+    y_format = ticker.FuncFormatter(y_tick_formatter)
+    ax.yaxis.set_major_formatter(ticker.ScalarFormatter())
+    ax.xaxis.set_major_formatter(ticker.ScalarFormatter())
     ax.tick_params(pad=20)
     #plt.ticklabel_format(axis='y', style='plain')
     title = 'wp(rp) for ' + set_desc
@@ -567,8 +568,25 @@ def wprp_fraction(gals, set_desc):
     # how to do the error, is it just the sum?
     combined_actual = actual_xis[0]/actual_xis[1]
     combined_pred = pred_xis[0]/pred_xis[1]
+    # actual red error
+    actual_var = [np.sqrt(np.diag(cov)) for cov in actual_cov]
+    frac_err_actual_red = actual_var[0]/actual_xis[0]
+    frac_err_actual_blue = actual_var[1]/actual_xis[1]
+    combined_actual_var = np.sqrt((frac_err_actual_red**2 + frac_err_actual_blue**2)) * combined_actual
 
-    return combined_actual, combined_pred
+    pred_var = [np.sqrt(np.diag(cov)) for cov in pred_cov]
+    frac_err_pred_red = pred_var[0]/pred_xis[0]
+    frac_err_pred_blue = pred_var[1]/pred_xis[1]
+    combined_pred_var = (frac_err_pred_red + frac_err_pred_blue) * combined_pred
+
+    combined_xis = [combined_actual, combined_pred]
+    combined_vars = [combined_actual_var, combined_pred_var]
+    # actual blue error
+    # predicted red error
+    # predicted blue error
+
+
+    return combined_xis, combined_vars, actual_xis, actual_var, pred_xis, pred_var
 
 
 def plot_richness_scatter(gals, name, full_set):
@@ -647,13 +665,39 @@ def richness_scatter(gals, full):
 
 
 def correlation_ratio(d_test, name):
-    c_actual, c_pred = wprp_fraction(d_test, name + 'mvir + dist')
-    plt.semilogx(r, c_actual, lw=4, label='input', color='k')
-    plt.plot(r, c_pred, '--', label='predicted', color=blue_col)
-    #plt.title('wprp quenched vs starforming ' + name)
-    plt.xlabel('$r$')
-    plt.ylabel('$w_p, Q / w_p, SF$')
+    c_xis, c_vars, a_xis, a_var, p_xis, p_var = wprp_fraction(d_test, name)
+    # Combined plot of wprp and ratio of quenched to starforming
+    fig = plt.figure(figsize=(12,12))
+    gs = gridspec.GridSpec(3,3)
+    # Bottom plot with the ratio
+    ax2 = plt.subplot(gs[2, :])
+    ax2.set_xscale('log')
+    c_actual, c_pred = c_xis
+    plt.errorbar(r, c_actual, c_vars[0], lw=3, label='input', color='k')
+    plt.errorbar(r, c_pred, c_vars[1], fmt='--', label='predicted', color=blue_col)
+    plt.xlabel('$r$ $[Mpc$ $h^{-1}]$')
+    plt.ylabel('$w_{p, Q} / w_{p, SF}$')
     plt.legend()
+    plt.ylim(0, 11)
+    minorLocator = ticker.AutoMinorLocator()
+    ax2.yaxis.set_minor_locator(minorLocator)
+    ax2.tick_params(which='major', axis='x', length=13, width=2)
+    ax2.tick_params(which='minor', axis='both', length=10, width=1)
+
+    # Top plot with wprp
+    ax1 = plt.subplot(gs[:2, :], sharex=ax2)
+    plt.setp(ax1.get_xticklabels(), visible=False)
+    #ax1.set_xscale('log')
+    ax1.set_yscale('log')
+    plt.errorbar(r, a_xis[0], a_var[0], fmt='-o', color=red_col)
+    plt.errorbar(r, a_xis[1], a_var[1], fmt='-o', color=blue_col)
+    plt.errorbar(r, p_xis[0], p_var[0], fmt='--o', color=red_col, alpha=0.6)
+    plt.errorbar(r, p_xis[1], p_var[1], fmt='--o', color=blue_col, alpha=0.6)
+    plt.ylabel('$w_p(r_p)$')
+    plt.xlim(1e-1, 30)
+    plt.subplots_adjust(hspace=0.0,wspace=-0.0)
+    ax1.tick_params(which='minor', axis='both', length=10, width=1)
+    ax1.tick_params(which='major', axis='both', length=13, width=2)
 
 # TODO: test by using test_gals == d_gals
 def plot_density_profile(d0, d_gals, test_gals, name):
