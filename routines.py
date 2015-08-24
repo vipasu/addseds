@@ -705,7 +705,7 @@ def correlation_ratio(d_test, label):
     plt.errorbar(r, p_xis[1], p_var[1], fmt='--o', color=blue_col, alpha=0.6)
     plt.ylabel('$w_p(r_p)$')
     plt.xlim(1e-1, 30)
-    plt.text(10, 300, label)
+    plt.text(6, 2500, label, fontsize=60)
     plt.subplots_adjust(hspace=0.0,wspace=-0.0)
     ax1.tick_params(which='minor', axis='both', length=10, width=1)
     ax1.tick_params(which='major', axis='both', length=13, width=2)
