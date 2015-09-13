@@ -134,7 +134,7 @@ def count_neighbors_within_r(center, tree, box_size, r):
     return len(idx) - 1 #exclude self
 
 
-def calculate_xi(cat, box_size, projected=True):
+def calculate_xi(cat, box_size, projected=True, rpmin=0.1, rpmax=20, Nrp=25):
     """
     Given a catalog of galaxies, compute the correlation function using
     approriate helper functions from CorrelationFunction.py
@@ -148,7 +148,7 @@ def calculate_xi(cat, box_size, projected=True):
     for i, coord in enumerate(coords):
         pos[:,i] = cat[coord]/h
     # why nside=3?
-    xi, cov = projected_correlation(pos, rbins, zmax, box_size, jackknife_nside=3)
+    xi, cov = projected_correlation(pos, rbins, zmax, box_size/h, jackknife_nside=3)
     return xi, cov
 
 
@@ -492,66 +492,54 @@ def plot_wprp(actual_xis, actual_cov, pred_xis, pred_cov, set_desc, num_splits):
     return
 
 
-def wprp_comparison(gals, set_desc, num_splits, mix=False):
+def wprp_red_blue(gals, cols=['ssfr','pred'], red_split, box_size,
+                  rpmin=0.1, rpmax=20.0, Nrp=25): # for 2 splits
+    results = []
+    for col in cols:
+        red = gals[gals.col < red_split]
+        blue = gals[gals.col > red_split]
+        rx, rc = calculate_xi(red, box_size, rpmin, rpmax, Nrp)
+        bx, bc = calculate_xi(blue, box_size, rpmin, rpmax, Nrp)
+        xis = [rx,bx]
+        covs = [rc, bc]
+        results.append(xis)
+        results.append(covs)
+    return results
+
+
+def wprp_bins(gals, num_splits, box_size, rpmin=0.1, rpmax=20.0, Nrp=25):
     """
     Takes in a data frame of galaxies and bins galaxies by ssfr. The CF is
     calculated for both predicted and actual ssfr values and passed to a helper
     function for plotting.
     """
-    plt.figure()
-    percentiles = [np.round(100. * i/(num_splits + 1)) for i in xrange(1, num_splits + 1)]
-    splits = [np.percentile(gals['ssfr'].values, p) for p in percentiles]
+    percentiles = [np.round(100. * i/(num_splits + 1)) for i in xrange(0, num_splits + 2)]
+    bins = np.percentile(gals['ssfr'].values, percentiles)
 
-    # Create empty lists for 2pt functions of multiple groups
-    pred_xis, pred_cov = [], []
-    actual_xis, actual_cov = [], []
+    actual_dfs, pred_dfs = [], []
+    for i in range(len(bins) - 1):
+        actual_dfs.append(gals[(gals.ssfr > bins[i]) & (gals.ssfr < bins[i+1])])
+        pred_dfs.append(gals[(gals.pred > bins[i]) & (gals.pred < bins[i+1])])
 
-    # When passed a subset of galaxies, compute the CF and cov and append it
-    # to the lists passed as arguments
-    def append_xi_cov(xi_list, cov_list, subset):
-        xi, cov = calculate_xi(subset)
-        xi_list.append(xi)
-        cov_list.append(cov)
+    results = []
+    for dfs in [actual_dfs, pred_dfs]:
+        xis = []
+        covs = []
+        for df in dfs:
+            xi, cov = calculate_xi(df, box_size, rpmin, rpmax, Nrp)
+            xis.append(xi)
+            covs.append(cov)
+        results.append(xis)
+        results.append(covs)
 
-    if mix:
-        # keep a list of subsets to shuffle later
-        pred_cats = []
-
-    append_xi_cov(pred_xis, pred_cov, gals[gals['pred'] < splits[0]])
-    append_xi_cov(actual_xis, actual_cov, gals[gals['ssfr'] < splits[0]])
-
-    for i in xrange(1, len(splits)):
-        cat_sub_pred = gals[(gals['pred'] < splits[i]) & (gals['pred'] > splits[i-1])]
-        cat_sub_actual = gals[(gals['ssfr'] < splits[i]) & (gals['ssfr'] > splits[i-1])]
-        if mix:
-            pred_cats.append(cat_sub_pred)
-        else:
-            append_xi_cov(pred_xis, pred_cov, cat_sub_pred)
-        append_xi_cov(actual_xis, actual_cov, cat_sub_actual)
-
-    if mix:
-        # may have to test for functionality since switching to pandas
-        pred_cats.append(gals[gals['pred'] > splits[-1]])
-        collection = np.concatenate(pred_cats)
-        perm = np.random.permutation(len(collection))
-
-        idx = 0
-        for pred_cat in pred_cats:
-            pred_cat = collection[perm[idx:idx + len(pred_cat)]]
-            idx += len(pred_cat)
-            append_xi_cov(pred_xis, pred_cov, pred_cat)
-
-    append_xi_cov(pred_xis, pred_cov, gals[gals['pred'] > splits[-1]])
-    append_xi_cov(actual_xis, actual_cov, gals[gals['ssfr'] > splits[-1]])
-
-    # TODO: comment this out
-    #plot_wprp(actual_xis, actual_cov, pred_xis, pred_cov, set_desc, num_splits)
-
-    return actual_xis, actual_cov, pred_xis, pred_cov
+    return results # actual_xis, actual_cov, pred_xis, pred_cov
 
 
-def wprp_fraction(gals, set_desc):
-    actual_xis, actual_cov, pred_xis, pred_cov = wprp_comparison(gals, set_desc, 1)
+def wprp_fraction(gals, cols=['ssfr','pred'], red_split, box_size,
+                  rpmin=0.1, rpmax=20.0, Nrp=25): # for 2 splits
+    actual_xis, actual_cov, pred_xis, pred_cov = wprp_red_blue(gals, cols,
+                                                               red_split,
+                                                               box_size)
     # how to do the error, is it just the sum?
     combined_actual = actual_xis[0]/actual_xis[1]
     combined_pred = pred_xis[0]/pred_xis[1]
@@ -568,10 +556,6 @@ def wprp_fraction(gals, set_desc):
 
     combined_xis = [combined_actual, combined_pred]
     combined_vars = [combined_actual_var, combined_pred_var]
-    # actual blue error
-    # predicted red error
-    # predicted blue error
-
 
     return combined_xis, combined_vars, actual_xis, actual_var, pred_xis, pred_var
 
