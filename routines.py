@@ -535,31 +535,6 @@ def wprp_bins(gals, num_splits, box_size, rpmin=0.1, rpmax=20.0, Nrp=25):
     return results # actual_xis, actual_cov, pred_xis, pred_cov
 
 
-def wprp_fraction(gals, cols=['ssfr','pred'], red_split, box_size,
-                  rpmin=0.1, rpmax=20.0, Nrp=25): # for 2 splits
-    actual_xis, actual_cov, pred_xis, pred_cov = wprp_red_blue(gals, cols,
-                                                               red_split,
-                                                               box_size)
-    # how to do the error, is it just the sum?
-    combined_actual = actual_xis[0]/actual_xis[1]
-    combined_pred = pred_xis[0]/pred_xis[1]
-    # actual red error
-    actual_var = [np.sqrt(np.diag(cov)) for cov in actual_cov]
-    frac_err_actual_red = actual_var[0]/actual_xis[0]
-    frac_err_actual_blue = actual_var[1]/actual_xis[1]
-    combined_actual_var = np.sqrt((frac_err_actual_red**2 + frac_err_actual_blue**2)) * combined_actual
-
-    pred_var = [np.sqrt(np.diag(cov)) for cov in pred_cov]
-    frac_err_pred_red = pred_var[0]/pred_xis[0]
-    frac_err_pred_blue = pred_var[1]/pred_xis[1]
-    combined_pred_var = (frac_err_pred_red + frac_err_pred_blue) * combined_pred
-
-    combined_xis = [combined_actual, combined_pred]
-    combined_vars = [combined_actual_var, combined_pred_var]
-
-    return combined_xis, combined_vars, actual_xis, actual_var, pred_xis, pred_var
-
-
 def plot_richness_scatter(gals, name, full_set):
     log_counts_a, scatter_a = richness_scatter(gals[gals['ssfr'] < -11.0], full_set)
     log_counts_p, scatter_p = richness_scatter(gals[gals['pred'] < -11.0], full_set)
