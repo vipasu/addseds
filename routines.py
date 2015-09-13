@@ -213,48 +213,22 @@ def calculate_r_hill(galaxies, hosts, box_size, projected=False):
         halo_masses.append(halo_mass)
 
 
-    return r_hills, halo_dists, halo_masses
+    return np.array(r_hills), np.array(halo_dists), np.array(halo_masses)
 
 
 def r_hill_pdfs(rhills, dists, masses):
-    dists = np.array(dists)
-    masses = np.array(masses)
-    rhills = np.array(rhills)
-
-    plt.figure()
-    sns.distplot(np.log10(rhills[~np.isnan(rhills)]), kde=False, norm_hist=True)
-    ax = plt.gca()
-    ax.set_yscale('log')
-    plt.ylabel('$PDF$')
-    plt.xlabel('$Log(Rhill)$')
-    labels = [item.get_text() for item in ax.get_xticklabels()]
-    labels = ['$10^{' + str(label) + '}$' for label in np.arange(-5,4)]
-    #ax.set_xticklabels(labels)
-
-    plt.figure()
-    sns.distplot(np.log10(dists[~np.isnan(dists)]), kde=False, norm_hist=True)
-    ax = plt.gca()
-    ax.set_yscale('log')
-    labels = [item.get_text() for item in ax.get_xticklabels()]
-    labels = ['$10^{' + str(label) + '}$' for label in np.arange(-4,4)]
-    #ax.set_xticklabels(labels)
-    plt.ylabel('$PDF$')
-    plt.xlabel('$Log(r_{Halo_{Rhill}})$')
-
-    plt.figure()
-    sns.distplot(np.log10(masses[~np.isnan(masses)]), kde=False, norm_hist=True)
-    ax = plt.gca()
-    ax.set_yscale('log')
-    plt.ylabel('$PDF$')
-    plt.xlabel('$Log(M_{Halo_{Rhill}})$')
-    labels = [item.get_text() for item in ax.get_xticklabels()]
-    labels = ['$10^{' + str(label) + '}$' for label in np.arange(9,17)]
-    #ax.set_xticklabels(labels)
-
-
-
-
-
+    data = [rhills, dists, masses]
+    xlabels = ['$Log(Rhill)$','$Log(r_{Halo_{Rhill}})$','$Log(M_{Halo_{Rhill}})$']
+    for dat, xlab in zip(data, xlabels):
+        plt.figure()
+        sns.distplot(np.log10(dat[~np.isnan(dat)]), kde=False, norm_hist=True)
+        ax = plt.gca()
+        ax.set_yscale('log')
+        plt.ylabel('$PDF$')
+        plt.xlabel(xlab)
+        #labels = [item.get_text() for item in ax.get_xticklabels()]
+        #labels = ['$10^{' + str(label) + '}$' for label in np.arange(-5,4)]
+        #ax.set_xticklabels(labels)
 
 
 ########################################
