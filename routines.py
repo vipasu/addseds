@@ -1012,6 +1012,11 @@ def fits_to_pandas(df):
     return pd.DataFrame.from_records(df.byteswap().newbyteorder())
 
 
+def calculate_projected_z(df):
+    df['zr'] = df['z'] + df['vz']/100
+    return df
+
+
 def fixed_power_law(x, intercept, c):
     return intercept + c * (x ** -1.5)
 
