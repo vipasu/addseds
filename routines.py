@@ -286,6 +286,15 @@ def scale_data(data):
     scaler = preprocessing.StandardScaler().fit(data)
     return scaler.transform(data), scaler
 
+
+def split_test_train(d, box_size, fraction=0.125):
+    d_train = d.sample(frac=fraction)
+    d_test = d[~d.index.isin(d_train.index)]
+    d_train = d_train.reset_index(drop=True)
+    d_test = d_test.reset_index(drop=True)
+    return d_train, d_test
+
+
 def split_octant(d, box_size):
     d_octant = d[(d['x'] < box_size/2) & (d['y'] < box_size/2) & (d['z'] < box_size/2)]
     d_rest = d[~d.index.isin(d_octant.index)]
