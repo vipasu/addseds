@@ -538,12 +538,8 @@ def wprp_bins(gals, num_splits, box_size, rpmin=0.1, rpmax=20.0, Nrp=25):
 def plot_richness_scatter(gals, name, full_set):
     log_counts_a, scatter_a = richness_scatter(gals[gals['ssfr'] < -11.0], full_set)
     log_counts_p, scatter_p = richness_scatter(gals[gals['pred'] < -11.0], full_set)
-    #fig1 = plt.figure(figsize=(12,7))
-    #frame1=fig1.add_axes((.1,.3,.8,.6))
-    #plt.subplot(121)
     plt.plot(log_counts_a, scatter_a, 'o', label='input', color='k', markersize=7)
     plt.plot(log_counts_p, scatter_p, 'o', label='predicted', color=red_col, markersize=7)
-    #plt.title('Scatter in richness ' + name)
     plt.xlabel('Log Number of red satellites')
     plt.xlabel('$<log N_{red sat}>$')
     plt.xlim(-.1,2.6)
@@ -551,18 +547,6 @@ def plot_richness_scatter(gals, name, full_set):
     plt.ylabel('Scatter in $M_{halo}$')
     plt.legend(loc='best')
 
-    #plt.subplot(122)
-    #frame2=fig1.add_axes((.1,.1,.8,.2))
-    #series_a = pd.Series(scatter_a, index=counts_a)
-    #series_p = pd.Series(scatter_p, index=counts_p)
-    # scat_diff = (series_a - series_p)/series_a
-    #scat_ratio = series_p/series_a
-    #plt.plot(scat_diff.index, scat_diff.values, 'ob')
-    #plt.plot(scat_ratio.index, scat_ratio.values, 'ob')
-    #plt.title("Scatter ratios in richness for actual vs predicted")
-    #plt.axhline(0)
-    #plt.ylabel('Error')
-    #plt.xlabel('Number of red satellites')
     return
 
 
@@ -939,6 +923,13 @@ def plot_p_red(masses, ytest, y_hat, name):
 ########################################
 # Miscellaneous functions
 ########################################
+
+def adjust_plot_ticks():
+    plt.gca().tick_params(which='minor', axis='both', length=10, width=1)
+    plt.gca().tick_params(which='major', axis='both', length=13, width=2)
+    plt.gca().get_yaxis().set_tick_params(which='both', direction='in')
+    plt.gca().get_xaxis().set_tick_params(which='both', direction='in')
+
 
 def fits_to_pandas(df):
     return pd.DataFrame.from_records(df.byteswap().newbyteorder())
