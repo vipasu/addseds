@@ -134,17 +134,21 @@ def count_neighbors_within_r(center, tree, box_size, r):
     return len(idx) - 1 #exclude self
 
 
-def calculate_xi(cat):
+def calculate_xi(cat, box_size, projected=True):
     """
     Given a catalog of galaxies, compute the correlation function using
     approriate helper functions from CorrelationFunction.py
     """
     rbins = np.logspace(np.log10(rpmin), np.log10(rpmax), Nrp+1)
     pos = np.zeros((len(cat), 3), order='C')
-    pos[:, 0] = cat['x']/h
-    pos[:, 1] = cat['y']/h
-    pos[:, 2] = cat['z']/h + cat['vz']/h/100.0
-    xi, cov = projected_correlation(pos, rbins, zmax, L, jackknife_nside=3)
+    if projected:
+        coords = ['x','y','zr']
+    else:
+        coords = ['x','y','z']
+    for i, coord in enumerate(coords):
+        pos[:,i] = cat[coord]/h
+    # why nside=3?
+    xi, cov = projected_correlation(pos, rbins, zmax, box_size, jackknife_nside=3)
     return xi, cov
 
 
@@ -705,7 +709,7 @@ def correlation_ratio(d_test, label):
     plt.errorbar(r, p_xis[1], p_var[1], fmt='--o', color=blue_col, alpha=0.6)
     plt.ylabel('$w_p(r_p)$')
     plt.xlim(1e-1, 30)
-    plt.text(6, 2500, label, fontsize=60)
+    plt.text(7, 2500, label, fontsize=60)
     plt.subplots_adjust(hspace=0.0,wspace=-0.0)
     ax1.tick_params(which='minor', axis='both', length=10, width=1)
     ax1.tick_params(which='major', axis='both', length=13, width=2)
