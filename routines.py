@@ -594,42 +594,6 @@ def richness_scatter(gals, full):
     return (bins[1:] + bins[:-1])/2, scatters
 
 
-def correlation_ratio(d_test, label):
-    c_xis, c_vars, a_xis, a_var, p_xis, p_var = wprp_fraction(d_test, label)
-    # Combined plot of wprp and ratio of quenched to starforming
-    fig = plt.figure(figsize=(12,12))
-    gs = gridspec.GridSpec(3,3)
-    # Bottom plot with the ratio
-    ax2 = plt.subplot(gs[2, :])
-    ax2.set_xscale('log')
-    c_actual, c_pred = c_xis
-    plt.errorbar(r, c_actual, c_vars[0], lw=3, label='input', color='k')
-    plt.errorbar(r, c_pred, c_vars[1], fmt='--', label='predicted', color=blue_col)
-    plt.xlabel('$r$ $[Mpc$ $h^{-1}]$')
-    plt.ylabel('$w_{p, Q} / w_{p, SF}$')
-    plt.legend()
-    plt.ylim(0, 11)
-    minorLocator = ticker.AutoMinorLocator()
-    ax2.yaxis.set_minor_locator(minorLocator)
-    ax2.tick_params(which='major', axis='x', length=13, width=2)
-    ax2.tick_params(which='minor', axis='both', length=10, width=1)
-
-    # Top plot with wprp
-    ax1 = plt.subplot(gs[:2, :], sharex=ax2)
-    plt.setp(ax1.get_xticklabels(), visible=False)
-    #ax1.set_xscale('log')
-    ax1.set_yscale('log')
-    plt.errorbar(r, a_xis[0], a_var[0], fmt='-o', color=red_col)
-    plt.errorbar(r, a_xis[1], a_var[1], fmt='-o', color=blue_col)
-    plt.errorbar(r, p_xis[0], p_var[0], fmt='--o', color=red_col, alpha=0.6)
-    plt.errorbar(r, p_xis[1], p_var[1], fmt='--o', color=blue_col, alpha=0.6)
-    plt.ylabel('$w_p(r_p)$')
-    plt.xlim(1e-1, 30)
-    plt.text(7, 2500, label, fontsize=60)
-    plt.subplots_adjust(hspace=0.0,wspace=-0.0)
-    ax1.tick_params(which='minor', axis='both', length=10, width=1)
-    ax1.tick_params(which='major', axis='both', length=13, width=2)
-
 # TODO: test by using test_gals == d_gals
 def plot_density_profile(d0, d_gals, test_gals, name, coords='default'):
     """
