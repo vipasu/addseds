@@ -212,7 +212,6 @@ def calculate_r_hill(galaxies, hosts, box_size, projected=False):
         halo_dists.append(halo_dist)
         halo_masses.append(halo_mass)
 
-
     return np.array(r_hills), np.array(halo_dists), np.array(halo_masses)
 
 
@@ -226,9 +225,9 @@ def r_hill_pdfs(rhills, dists, masses):
         ax.set_yscale('log')
         plt.ylabel('$PDF$')
         plt.xlabel(xlab)
-        #labels = [item.get_text() for item in ax.get_xticklabels()]
-        #labels = ['$10^{' + str(label) + '}$' for label in np.arange(-5,4)]
-        #ax.set_xticklabels(labels)
+        # labels = [item.get_text() for item in ax.get_xticklabels()]
+        # labels = ['$10^{' + str(label) + '}$' for label in np.arange(-5,4)]
+        # ax.set_xticklabels(labels)
 
 
 ########################################
@@ -238,47 +237,48 @@ def r_hill_pdfs(rhills, dists, masses):
 # pull code from here
 #    https://bitbucket.org/beckermr/fast3tree
 
-def catalog_selection(d0, m, msmin, msmax):
+def catalog_selection(d0, m, msmin, msmax=None):
     """
-    Create parent set with mvir > m
+    Create host set with mvir > m
     and galaxy set with mstar in the range (msmin, msmax)
     """
     # get parent halo set
-    dp = d0[(d0['upid'] == -1) & (d0['mvir'] >= m)]
-    dp = dp.reset_index(drop=True)
+    hosts = d0[(d0.upid == -1) & (d0.mvir >= m)]
+    hosts = hosts.reset_index(drop=True)
 
     # make stellar mass bin
-    d = d0[(d0['mstar'] >= msmin) & (d0['mstar'] <= msmax)]
-    d = d.reset_index(drop=True)
-    return d, dp
+    df = d0[d0.mstar >= msmin]
+    if msmax is not None:
+        df = df[df.mstar < msmax]
+    df = df.reset_index(drop=True)
+    return df, hosts
 
 
-def get_dist_and_attrs(dp, d, nn, attrs, coords='default'):
+def get_dist_and_attrs(hosts, gals, nn, attrs, projected=False):
     """
-    dp - parent set of halos
-    d - galaxy set
+    hosts - parent set of halos
+    gals - galaxy set
     nn - num neighbors
-    attrs - list of attributes (i.e. ['mvir','vmax']
+    attrs - list of attributes (i.e. ['mvir','vmax'])
     """
-    pos = np.zeros((len(dp), 3))
-    if coords == 'redshift':
+    pos = np.zeros((len(hosts), 3))
+    if projected:
         pos_tags = ['x', 'y', 'zr']
     else:
         pos_tags = ['x', 'y', 'z']
     for i, tag in enumerate(pos_tags):
-        pos[:, i] = dp[tag][:]
+        pos[:, i] = hosts[tag][:]
 
-    dnbr = np.zeros(len(d))
-    res = [np.zeros(len(d)) for attr in attrs]
+    dnbr = np.zeros(len(gals))
+    res = [np.zeros(len(gals)) for attr in attrs]
     with fast3tree(pos) as tree:
-        for i in xrange(len(d)):
-            if i % 10000 == 0: print i, len(d)
-            #center = [d['x'].values[i], d['y'].values[i], d['z'].values[i]]
-            center = [d[tag].values[i] for tag in pos_tags]
+        for i in xrange(len(gals)):
+            if i % 10000 == 0: print i, len(gals)
+            center = [gals[tag].values[i] for tag in pos_tags]
             r, ind = get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=nn, exclude_self=True)
             dnbr[i] = np.log10(r)
             for j, attr in enumerate(attrs):
-                res[j][i] = dp[attr].values[ind]
+                res[j][i] = hosts[attr].values[ind]
     return dnbr, res
 
 
