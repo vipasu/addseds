@@ -428,6 +428,24 @@ def y_tick_formatter(x, pos):
 # Tests aka Heavy Lifters
 ########################################
 
+def plot_rwp(gals, red_split, box_size, cols=['ssfr', 'pred'],
+             rpmin=0.1, rpmax=20.0, Nrp=25):
+    rbins = np.logspace(np.log10(rpmin), np.log10(rpmax), Nrp+1)
+    r = np.sqrt(rbins[1:]*rbins[:-1])
+    a_xis, a_var, p_xis, p_var = wprp_red_blue(d_test, cols, red_split,
+                                               box_size, rpmin, rpmax, Nrp)
+    fig = plt.figure(figsize=(12, 12))
+    plt.xscale('log')
+    plt.errorbar(r, r * a_xis[0], r*a_var[0], fmt='-o', color=red_col)
+    plt.errorbar(r, r * a_xis[1], r*a_var[1], fmt='-o', color=blue_col)
+    plt.errorbar(r, r * p_xis[0], r*p_var[0], fmt='--o', color=red_col, alpha=0.6)
+    plt.errorbar(r, r * p_xis[1], r*p_var[1], fmt='--o', color=blue_col, alpha=0.6)
+    plt.ylabel('$r$ $w_p(r_p)$')
+    plt.xlabel('$r$ $[Mpc$ $h^{-1}]$')
+    plt.xlim(1e-1, 30)
+    adjust_plot_ticks()
+
+
 def plot_wprp(actual_xis, actual_cov, pred_xis, pred_cov, set_desc, num_splits):
     """
     Plots calculated values of the correlation function and error bars
@@ -492,7 +510,7 @@ def plot_wprp(actual_xis, actual_cov, pred_xis, pred_cov, set_desc, num_splits):
     return
 
 
-def wprp_red_blue(gals, cols=['ssfr','pred'], red_split, box_size,
+def wprp_red_blue(gals, red_split, box_size, cols=['ssfr','pred'],
                   rpmin=0.1, rpmax=20.0, Nrp=25): # for 2 splits
     results = []
     for col in cols:
