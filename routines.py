@@ -428,6 +428,7 @@ def y_tick_formatter(x, pos):
 # Tests aka Heavy Lifters
 ########################################
 
+
 def plot_rwp(gals, red_split, box_size, cols=['ssfr', 'pred'],
              rpmin=0.1, rpmax=20.0, Nrp=25):
     rbins = np.logspace(np.log10(rpmin), np.log10(rpmax), Nrp+1)
@@ -444,6 +445,7 @@ def plot_rwp(gals, red_split, box_size, cols=['ssfr', 'pred'],
     plt.xlabel('$r$ $[Mpc$ $h^{-1}]$')
     plt.xlim(1e-1, 30)
     adjust_plot_ticks()
+    return a_xis, a_var, p_xis, p_var, r
 
 
 def plot_wprp(actual_xis, actual_cov, pred_xis, pred_cov, set_desc, num_splits):
@@ -514,12 +516,12 @@ def wprp_red_blue(gals, red_split, box_size, cols=['ssfr','pred'],
                   rpmin=0.1, rpmax=20.0, Nrp=25): # for 2 splits
     results = []
     for col in cols:
-        red = gals[gals.col < red_split]
-        blue = gals[gals.col > red_split]
-        rx, rc = calculate_xi(red, box_size, rpmin, rpmax, Nrp)
-        bx, bc = calculate_xi(blue, box_size, rpmin, rpmax, Nrp)
-        xis = [rx,bx]
-        covs = [rc, bc]
+        red = gals[gals[col] < red_split]
+        blue = gals[gals[col] > red_split]
+        rx, rc = calculate_xi(red, box_size, True, rpmin, rpmax, Nrp)
+        bx, bc = calculate_xi(blue, box_size, True, rpmin, rpmax, Nrp)
+        xis = [rx, bx]
+        covs = [np.sqrt(np.diag(rc)), np.sqrt(np.diag(bc))]
         results.append(xis)
         results.append(covs)
     return results
@@ -544,7 +546,7 @@ def wprp_bins(gals, num_splits, box_size, rpmin=0.1, rpmax=20.0, Nrp=25):
         xis = []
         covs = []
         for df in dfs:
-            xi, cov = calculate_xi(df, box_size, rpmin, rpmax, Nrp)
+            xi, cov = calculate_xi(df, box_size, True, rpmin, rpmax, Nrp)
             xis.append(xi)
             covs.append(cov)
         results.append(xis)
