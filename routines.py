@@ -156,12 +156,12 @@ def find_min_rhill(rs, idxs, m_sec, larger_halos):
     if len(rs) < 0:
         return [np.nan, np.nan, np.nan]
     else:
-        rhills = [r * (m_sec/ (3 * larger_halos['mvir'][idx]) ) ** (1./3)
+        rhills = [r * (m_sec/ (3 * larger_halos['mvir'].values[idx]) ) ** (1./3)
                   for r, idx in zip(rs, idxs)]
         rhill_min = min(rhills)
         idx = np.argmin(rhills)
         r_halo = rs[idx]
-        m_halo = larger_halos['mvir'][idx]
+        m_halo = larger_halos['mvir'].values[idx]
         return rhill_min, r_halo, m_halo
 
 
