@@ -432,8 +432,8 @@ def plot_rwp(gals, red_split, box_size, cols=['ssfr', 'pred'],
              rpmin=0.1, rpmax=20.0, Nrp=25):
     rbins = np.logspace(np.log10(rpmin), np.log10(rpmax), Nrp+1)
     r = np.sqrt(rbins[1:]*rbins[:-1])
-    a_xis, a_var, p_xis, p_var = wprp_red_blue(d_test, cols, red_split,
-                                               box_size, rpmin, rpmax, Nrp)
+    a_xis, a_var, p_xis, p_var = wprp_red_blue(gals, red_split, box_size,
+                                               cols, rpmin, rpmax, Nrp)
     fig = plt.figure(figsize=(12, 12))
     plt.xscale('log')
     plt.errorbar(r, r * a_xis[0], r*a_var[0], fmt='-o', color=red_col)
