@@ -153,7 +153,7 @@ def calculate_xi(cat, box_size, projected=True, rpmin=0.1, rpmax=20, Nrp=25):
 
 
 def find_min_rhill(rs, idxs, m_sec, larger_halos):
-    if len(rs) < 0:
+    if len(rs) <= 0:
         return [np.nan, np.nan, np.nan]
     else:
         rhills = [r * (m_sec/ (3 * larger_halos['mvir'].values[idx]) ) ** (1./3)
