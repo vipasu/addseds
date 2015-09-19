@@ -448,70 +448,6 @@ def plot_rwp(gals, red_split, box_size, cols=['ssfr', 'pred'],
     return a_xis, a_var, p_xis, p_var, r
 
 
-def plot_wprp(actual_xis, actual_cov, pred_xis, pred_cov, set_desc, num_splits):
-    """
-    Plots calculated values of the correlation function and error bars
-    as well as a secondary plot with a power fit for each group
-    """
-    n_groups = len(actual_xis)
-    # create a range of colors from red to blue
-    colors = sns.blend_palette([red_col, blue_col], n_groups)
-
-    fig = plt.figure()
-    ax = plt.gca()
-    ax.set_xscale("log")
-    ax.set_yscale('log')
-
-    for i, xi_pred, cov_pred, xi_actual, cov_actual in \
-            zip(xrange(n_groups), pred_xis, pred_cov, actual_xis, actual_cov):
-
-        print str(i) + 'th bin'
-        print 'chi square is:', chisquare(xi_pred, xi_actual)
-        var1 = np.sqrt(np.diag(cov_pred))
-        var2 = np.sqrt(np.diag(cov_actual))
-        plt.errorbar(r, xi_actual, var2, fmt='-o', label=str(i+1), color=colors[i])
-        plt.errorbar(r, xi_pred, var1, fmt='--o', color=colors[i], alpha=0.6)
-
-
-    y_format = ticker.FuncFormatter(y_tick_formatter)
-    ax.yaxis.set_major_formatter(ticker.ScalarFormatter())
-    ax.xaxis.set_major_formatter(ticker.ScalarFormatter())
-    ax.tick_params(pad=20)
-    #plt.ticklabel_format(axis='y', style='plain')
-    title = 'wp(rp) for ' + set_desc
-    #plt.title(title)
-    plt.xlabel('$r$ $[Mpc$ $h^{-1}]$')
-    plt.xlim(1e-1, 30)
-    plt.ylabel('$w_p(r_p)$')
-    #plt.legend()
-
-    # Fits power laws of the form c(x^-1.5) + y0
-
-    plt.figure()
-    plt.subplot(121)
-    plt.hold(True)
-    ax = plt.gca()
-    ax.set_xscale("log")
-    ax.set_yscale('log')
-    fit_region, = np.where(r > 2)
-    r_fit = r[fit_region]
-    normalizations = []
-    for i, xi_pred in zip(xrange(num_splits + 1), pred_xis):
-        popt, pcov = curve_fit(fixed_power_law, r_fit, xi_pred[fit_region],
-                               p0= [500,20])
-        normalizations.append(popt[1])
-        plt.plot(r_fit, fixed_power_law(r_fit, *popt), color=colors[i], label=str(i+1))
-    plt.legend()
-
-    plt.subplot(122)
-    sns.barplot(np.arange(1,num_splits + 2), np.array(normalizations), palette=colors)
-
-    #plt.savefig(image_prefix + title + png)
-    plt.show()
-
-    return
-
-
 def wprp_red_blue(gals, red_split, box_size, cols=['ssfr','pred'],
                   rpmin=0.1, rpmax=20.0, Nrp=25): # for 2 splits
     results = []
@@ -552,7 +488,7 @@ def wprp_bins(gals, num_splits, box_size, rpmin=0.1, rpmax=20.0, Nrp=25):
         results.append(xis)
         results.append(covs)
 
-    return results # actual_xis, actual_cov, pred_xis, pred_cov
+    return results  # actual_xis, actual_cov, pred_xis, pred_cov
 
 
 def plot_richness_scatter(gals, name, full_set):
