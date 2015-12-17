@@ -1,3 +1,7 @@
+import os
+import cPickle as pickle
+
+
 def fits_to_pandas(df):
     return pd.DataFrame.from_records(df.byteswap().newbyteorder())
 
@@ -71,3 +75,26 @@ def pre_process(features, target, d, seed=5432):
     ytrain, ytest = y[:split], y[split:]
     d_train, d_test = d.ix[shuffle[:split]], d.ix[shuffle[split:]]
     return Xtrain, Xtest, ytrain, ytest, d_train, d_test, x_scaler, y_scaler
+
+
+def get_logging_dir(cat_name, output_dir='output/'):
+    out = output_dir + cat_name + '/data/'
+    mkdir_p(out)
+    return out
+
+
+def get_plotting_dir(cat_name, output_dir='output/'):
+    out = output_dir + cat_name + '/plots/'
+    mkdir_p(out)
+    return out
+
+
+def dump_data(data, name, log_dir):
+    with open(log_dir + name, 'w') as f:
+        pickle.dump(data, f)
+
+
+def load_data(name, log_dir):
+    with open(log_dir + name, 'r') as f:
+        res = pickle.load(f)
+    return res

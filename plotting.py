@@ -55,18 +55,28 @@ def style_plots(ax=None):
     return ax
 
 
-def get_logging_dir(cat_name, output_dir='output/'):
-    out = output_dir + cat_name + '/data/'
-    util.mkdir_p(out)
-    return out
-
-
-def get_plotting_dir(cat_name, output_dir='output/'):
-    out = output_dir + cat_name + '/plots/'
-    util.mkdir_p(out)
-    return out
 
 
 ## TODO: Come up with data format for HOD
 ## TODO: Come up with data format for number density
 ## TODO: Come up with data format for wprp
+def plot_rwp(fname):
+    ### Load the data
+    results = util.load_data(fname)
+    r, ssfr, pred = results
+    a_xis, a_covs = ssfr
+    p_xis, p_covs = pred
+    fig = plt.figure(figsize=(12, 12))
+    plt.xscale('log')
+    plt.errorbar(r, r * a_xis[0], r*a_var[0], fmt='-o', color=red_col)
+    plt.errorbar(r, r * a_xis[1], r*a_var[1], fmt='-o', color=blue_col)
+    plt.errorbar(r, r * p_xis[0], r*p_var[0], fmt='--o', color=red_col, alpha=0.6)
+    plt.errorbar(r, r * p_xis[1], r*p_var[1], fmt='--o', color=blue_col, alpha=0.6)
+
+    ### Formatting stuff
+    plt.ylabel('$r$ $w_p(r_p)$')
+    plt.xlabel('$r$ $[Mpc$ $h^{-1}]$')
+    plt.xlim(1e-1, 30)
+    return style_plots()
+
+def plot_rwp_bins(fname):

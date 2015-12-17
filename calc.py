@@ -41,7 +41,7 @@ def catalog_selection(d0, m, msmin, msmax=None):
     return df, hosts
 
 
-def get_dist_and_attrs(hosts, gals, nn, attrs, projected=False):
+def get_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0, projected=False):
     """
     hosts - parent set of halos
     gals - galaxy set
@@ -93,6 +93,14 @@ def get_distance(center, pos, box_size=-1):
         d[d > half_box_size] -= box_size
         d[d < -half_box_size] += box_size
     return d
+
+
+def get_3d_distance(center, pos, box_size=-1):
+    dx = get_distance(center[0], loc[:, 0], box_size=box_size)
+    dy = get_distance(center[1], loc[:, 1], box_size=box_size)
+    dz = get_distance(center[2], loc[:, 2], box_size=box_size)
+    r2 = dx*dx + dy*dy + dz*dz
+    return np.sqrt(r2)
 
 
 def get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=1,
@@ -243,12 +251,8 @@ def calculate_r_hill(galaxies, hosts, box_size, projected=False):
         num_tries = 0
         # Consider all massive neighbors
         idxs, loc = get_all_neighbors(pos, center, box_size)
-        dx = get_distance(center[0], loc[:, 0], box_size=box_size)
-        dy = get_distance(center[1], loc[:, 1], box_size=box_size)
-        dz = get_distance(center[2], loc[:, 2], box_size=box_size)
-        r2 = dx*dx + dy*dy + dz*dz
-        msk = r2 > 0.0
-        rs = np.sqrt(r2[msk])
+        rs = get_3d_distance(center, loc, box_size)
+        msk = rs > 0.0
         idxs = idxs[msk]
         rhill, halo_dist, halo_mass = find_min_rhill(rs, idxs, m_sec, larger_halos)
         r_hills.append(rhill)
