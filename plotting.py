@@ -59,19 +59,17 @@ def style_plots(ax=None):
 
 ## TODO: Come up with data format for HOD
 ## TODO: Come up with data format for number density
-## TODO: Come up with data format for wprp
-def plot_rwp(fname):
+## TODO: Come up with data format for wprp - done
+
+def plot_rwp(name, log_dir):
     ### Load the data
-    results = util.load_data(fname)
-    r, ssfr, pred = results
-    a_xis, a_covs = ssfr
-    p_xis, p_covs = pred
+    r, a_xis, a_vars, p_xis, p_vars = util.get_wprp_data(name, log_dir)
     fig = plt.figure(figsize=(12, 12))
     plt.xscale('log')
-    plt.errorbar(r, r * a_xis[0], r*a_var[0], fmt='-o', color=red_col)
-    plt.errorbar(r, r * a_xis[1], r*a_var[1], fmt='-o', color=blue_col)
-    plt.errorbar(r, r * p_xis[0], r*p_var[0], fmt='--o', color=red_col, alpha=0.6)
-    plt.errorbar(r, r * p_xis[1], r*p_var[1], fmt='--o', color=blue_col, alpha=0.6)
+    plt.errorbar(r, r * a_xis[0], r*a_vars[0], fmt='-o', color=red_col)
+    plt.errorbar(r, r * a_xis[1], r*a_vars[1], fmt='-o', color=blue_col)
+    plt.errorbar(r, r * p_xis[0], r*p_vars[0], fmt='--o', color=red_col, alpha=0.6)
+    plt.errorbar(r, r * p_xis[1], r*p_vars[1], fmt='--o', color=blue_col, alpha=0.6)
 
     ### Formatting stuff
     plt.ylabel('$r$ $w_p(r_p)$')
@@ -79,4 +77,4 @@ def plot_rwp(fname):
     plt.xlim(1e-1, 30)
     return style_plots()
 
-def plot_rwp_bins(fname):
+#def plot_rwp_bins(fname):

@@ -1,5 +1,7 @@
 import os
 import cPickle as pickle
+import numpy as np
+import errno
 
 
 def fits_to_pandas(df):
@@ -98,3 +100,13 @@ def load_data(name, log_dir):
     with open(log_dir + name, 'r') as f:
         res = pickle.load(f)
     return res
+
+
+def get_wprp_data(name, log_dir):
+    results = load_data(name, log_dir)
+    r, ssfr, pred = results
+    a_xis, a_vars = ssfr
+    p_xis, p_vars = pred
+    return r, a_xis, a_vars, p_xis, p_vars
+
+

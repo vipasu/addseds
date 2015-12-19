@@ -164,7 +164,10 @@ def calculate_xi(cat, box_size, projected=True, rpmin=0.1, rpmax=20, Nrp=25):
 
 def wprp_split(gals, red_split, box_size, cols=['ssfr','pred'],
                   rpmin=0.1, rpmax=20.0, Nrp=25): # for 2 splits
+    rbins = np.logspace(np.log10(rpmin), np.log10(rpmax), Nrp+1)
+    r = np.sqrt(rbins[1:]*rbins[:-1])
     results = []
+    results.append(r)
     for col in cols:
         red = gals[gals[col] < red_split]
         blue = gals[gals[col] > red_split]
