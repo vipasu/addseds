@@ -256,7 +256,7 @@ def calculate_r_hill(galaxies, hosts, box_size, projected=False):
         idxs, loc = get_all_neighbors(pos, center, box_size)
         rs = get_3d_distance(center, loc, box_size)
         msk = rs > 0.0
-        idxs = idxs[msk]
+        rs, idxs = rs[msk], idxs[msk]
         rhill, halo_dist, halo_mass = find_min_rhill(rs, idxs, m_sec, larger_halos)
         r_hills.append(rhill)
         halo_dists.append(halo_dist)
@@ -287,8 +287,59 @@ def quenched_fraction(catalog, nbins=14):
     return f_q_actual, f_q_predicted
 
 
-def HOD():
-    pass
+def color_counts_for_HOD(id_to_bin, objects, nbins, red_cut=-11.0, id='upid', col='ssfr'):
+    blue_counts, red_counts = np.zeros(nbins), np.zeros(nbins)
+    bins = pd.Series(objects[id]).map(id_to_bin)
+    cols = pd.Series(objects[col]).map(lambda x: x < red_cut)
+    for bin_id, red in zip(bins, col):
+        if not np.isnan(bin_id):
+            if red:
+                red_counts[bin_id] += 1
+            else:
+                blue_counts[bin_id] += 1
+                
+
+
+
+def HOD(d0, test_gals, msmin, msmax=None):
+    mvir = d0['mvir'].values
+    red_cut = -11.0
+    # create equal spacing on log scale
+    log_space = np.arange(np.log10(np.min(mvir)), np.log10(np.max(mvir)),.2)
+
+    edges = 10**log_space
+    centers = 10 ** ((log_space[1:] + log_space[:-1])/2)
+    halos = d0[d0['upid'] == -1]
+    centrals = halos[halos['mstar'] > msmin]
+    satellites = d0[(d0['upid'] != -1) & (d0['mstar'] > msmin)]
+    if msmax:
+        satellites = satellites[satellites['mstar'] < msmax]
+        centrals = centrals[centrals['mstar'] < msmax]
+
+    # count the number of parents in each bin
+    num_halos, _ = np.histogram(halos['mvir'], edges)
+    num_halos = num_halos.astype(np.float)
+    nbins = len(centers)
+
+    # create map from upid to host mass to bin
+    halo_id_to_bin = {}
+    for _, halo in halos.iterrows():
+        bin_id = np.digitize([halo['mvir']], edges, right=True)[0]
+        halo_id_to_bin[halo['id']] = min(bin_id, nbins-1)
+
+    num_actual_blue_s, num_actual_red_s = color_counts_for_HOD(halo_id_to_bin, satellites, id='upid', col='ssfr')
+    num_actual_blue_c, num_actual_red_c = color_counts_for_HOD(halo_id_to_bin, centrals, id='upid', col='ssfr')
+
+    pred_sats = test_gals[test_gals['upid'] != -1]
+    pred_cents = test_gals[test_gals['upid'] == -1]
+    num_pred_blue_s, num_pred_red_s = color_counts_for_HOD(halo_id_to_bin, pred_sats, id='upid', col='pred')
+    num_pred_blue_c, num_pred_red_c = color_counts_for_HOD(halo_id_to_bin, pred_cents, id='upid', col='pred')
+    # TODO: verify that I should be comparing the real color of the full thing to 8/7 times the predicted ones
+    results = []
+    results.append(centers)
+    results.append([[num_actual_red_c, num_actual_blue_c], [num_actual_red_s, num_actual_blue_s]])
+    results.append([[num_pred_red_c, num_pred_blue_c], [num_pred_red_s, num_pred_blue_s]])
+    return results
 
 
 def density_profile():
