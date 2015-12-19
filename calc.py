@@ -13,6 +13,12 @@ from fast3tree import fast3tree
 # c.HOD
 # c.density_profile
 
+# desired checks
+# make sure everyone has a position
+# has mstar
+# has ssfr
+# has id
+
 h = 0.7
 L = 250.0/h
 zmax = 40.0
@@ -22,6 +28,19 @@ rpmax = 20.0
 Nrp = 25
 rbins = np.logspace(np.log10(rpmin), np.log10(rpmax), Nrp+1)
 r = np.sqrt(rbins[1:]*rbins[:-1])
+
+
+def make_pos(gals, pos_tags=['x', 'y', 'z']):
+    pos = np.zeros((len(gals), 3))
+    for i, tag in enumerate(pos_tags):
+        pos[:, i] = gals[tag][:]
+    return pos
+
+
+def make_r_scale(rmin, rmax, Nrp):
+    rbins = np.logspace(np.log10(rpmin), np.log10(rpmax), Nrp+1)
+    r = np.sqrt(rbins[1:]*rbins[:-1])
+    return r, rbins
 
 
 def catalog_selection(d0, m, msmin, msmax=None):
@@ -48,13 +67,11 @@ def get_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0, projected=False):
     nn - num neighbors
     attrs - list of attributes (i.e. ['mvir','vmax'])
     """
-    pos = np.zeros((len(hosts), 3))
     if projected:
         pos_tags = ['x', 'y', 'zr']
     else:
         pos_tags = ['x', 'y', 'z']
-    for i, tag in enumerate(pos_tags):
-        pos[:, i] = hosts[tag][:]
+    pos = make_pos(hosts, pos_tags)
 
     dnbr = np.zeros(len(gals))
     res = [np.zeros(len(gals)) for attr in attrs]
@@ -164,8 +181,7 @@ def calculate_xi(cat, box_size, projected=True, rpmin=0.1, rpmax=20, Nrp=25):
 
 def wprp_split(gals, red_split, box_size, cols=['ssfr','pred'],
                   rpmin=0.1, rpmax=20.0, Nrp=25): # for 2 splits
-    rbins = np.logspace(np.log10(rpmin), np.log10(rpmax), Nrp+1)
-    r = np.sqrt(rbins[1:]*rbins[:-1])
+    r, rbins = make_r_scale(rpmin, rpmax, Nrp)
     results = []
     results.append(r)
     for col in cols:
@@ -297,7 +313,7 @@ def color_counts_for_HOD(id_to_bin, objects, nbins, red_cut=-11.0, id='upid', co
                 red_counts[bin_id] += 1
             else:
                 blue_counts[bin_id] += 1
-                
+
 
 
 
@@ -342,8 +358,59 @@ def HOD(d0, test_gals, msmin, msmax=None):
     return results
 
 
-def density_profile():
-    pass
+def density_profile_counts(pos, hosts, box_size, nmbins, num_halos, r, rbins, col='ssfr'):
+    results = []
+    with fast3tree(pos) as tree:
+        tree.set_boundaries(0.0, box_size)
+        for i in xrange(nmbins):
+            mass_select = hosts[hosts['mbin_idx'] == i]
+            # verify whether this should be r or rbins
+            num_red, num_blue = [np.zeros(len(r))] * 2
+            for j, halo in mass_select.iterrows():
+                center = [halo[tag] for tag in pos_tags]
+                idxs, pos = tree.query_radius(center, rmax, periodic=box_size, output='both')
+                rs = get_3d_distance(center, pos, box_size=box_size)
+                msk = rs > 0
+                rs = rs[msk]
+                idxs = idxs[msk]
+                for dist, sat_idx in zip(rs, idxs):
+                    rbin = np.digitize([dist], rbins)
+                    # indexing reflects return values from tree
+                    if d_gals[col].values[sat_idx] < -11:
+                        num_red[rbin] += 1
+                    else:
+                        num_blue[rbin] += 1
+            volumes = [4./3 * np.pi * rad**3 for rad in r] # maybe rbins
+            # Do these need any cumsums? # don't think so
+            for counts in [num_red, num_blue]:
+                counts = counts / num_halos[i] / volumes
+            results.append([num_red, num_blue])
+    return results
+
+def density_profile(hosts, gals, test_gals, rmin=0.1, rmax=5.0, Nrp=10):
+    r, rbins = make_r_scale(rmin, rmax, Nrp)
+    results = [r]
+
+    pos = make_pos(gals)
+
+    mvir = hosts['mvir'].values
+    mmin, mmax = np.min(mvir), np.max(mvir)
+    nmbins = 3
+    lmbins = np.logspace(np.log10(mmin), np.log10(mmax), nmbins+1)
+    mbins = 10**lmbins
+    print mbins
+
+    num_halos, _ = np.histogram(mvir, mbins)
+    hosts['mbin_idx'] = np.digitize(mvir, mbins)
+    # TODO: find out if there's a better way to split by the bin they're in
+    # TODO: test if this should be digitizing mbins or lmbins
+
+    # TODO: Consider splitting the routine into two calls (one for real, one for pred)
+    actual_counts = density_profile_counts(pos, hosts, box_size, nmbins, num_halos, r, rbins, col='ssfr')
+    pred_counts = density_profile_counts(test_pos, hosts, box_size, nmbins, num_halos, r, rbins, col='pred')
+    results.append(actual_counts)
+    results.append(pred_counts)
+    return results
 
 
 def density_vs_fq():
