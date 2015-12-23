@@ -48,9 +48,9 @@ def set_plotting_context():
 def style_plots(ax=None):
     if ax is None:
         ax = plt.gca()
-    ax.tick_params(which='minor',axis='both',color='k',length=10,width=2, direction='in')
+    ax.tick_params(which='minor',axis='both',color='k',length=4,width=1, direction='in')
     # labelsize=x, pad=y
-    ax.tick_params(which='major',axis='both',color='k',length=20,width=2, direction='in', pad=50)
+    ax.tick_params(which='major',axis='both',color='k',length=8,width=1, direction='in', pad=10)
     plt.minorticks_on()
     return ax
 

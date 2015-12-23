@@ -4,7 +4,11 @@ import errno
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 from fast3tree import fast3tree
+import fitsio
+import util
+import plotting as p
 
 ### TODO: define functionality
 # API Calls
@@ -113,9 +117,9 @@ def get_distance(center, pos, box_size=-1):
 
 
 def get_3d_distance(center, pos, box_size=-1):
-    dx = get_distance(center[0], loc[:, 0], box_size=box_size)
-    dy = get_distance(center[1], loc[:, 1], box_size=box_size)
-    dz = get_distance(center[2], loc[:, 2], box_size=box_size)
+    dx = get_distance(center[0], pos[:, 0], box_size=box_size)
+    dy = get_distance(center[1], pos[:, 1], box_size=box_size)
+    dz = get_distance(center[2], pos[:, 2], box_size=box_size)
     r2 = dx*dx + dy*dy + dz*dz
     return np.sqrt(r2)
 
@@ -415,6 +419,82 @@ def density_profile(hosts, gals, test_gals, rmin=0.1, rmax=5.0, Nrp=10):
 
 def density_vs_fq():
     pass
+
+
+def density_match(gals, box_size, HW, sm_cuts, debug=False):
+    sample_size = 1./box_size # I think this is how I came up with the number
+    densities = []
+    test_cuts = np.arange(6,12,.01)
+    for cut in test_cuts:
+        #densities.append(len(gals[gals.mstar > cut]) / box_size**3/sample_size)
+        densities.append(len(gals[gals.mstar > cut]) / box_size**3)
+
+    actual_densities = [len(HW[HW.mstar > cut])/250.0**3 for cut in sm_cuts]
+
+
+    if debug:
+        print 'HW densities are: ',actual_densities
+        plt.plot(test_cuts, densities, '.')
+        plt.plot(sm_cuts, actual_densities, '*')
+        p.style_plots()
+
+    # matching
+    idxs = np.digitize(actual_densities, densities)
+    return test_cuts[idxs]
+
+
+def quenched_fraction(gals, red_cut):
+    return gals['ssfr'].apply(lambda x: x < red_cut).mean()
+
+def match_quenched_fraction(gals, new_sm_cuts, HW, sm_cuts, red_cut, debug=False):
+    actual_f_q = [quenched_fraction(HW[HW.mstar > cut], red_cut) for cut in sm_cuts]
+    print actual_f_q
+    new_red_cuts = []
+    test_red_cuts = np.arange(-12.5,0,.01)
+    if debug:
+        sns.kdeplot(gals.ssfr)
+        plt.figure()
+    for i, (new_sm_cut, old_sm_cut) in enumerate(zip(new_sm_cuts, sm_cuts)):
+        quenched_fractions = []
+        for cut in test_red_cuts:
+            quenched_fractions.append(quenched_fraction(gals[gals.mstar > new_sm_cut], cut))
+        if debug:
+            plt.plot(test_red_cuts, quenched_fractions)
+        idx = np.digitize([actual_f_q[i]], quenched_fractions)[0] # array and dearray
+        new_red_cuts.append(test_red_cuts[idx])
+    if debug:
+        plt.plot([red_cut] * 3, actual_f_q, '*')
+        p.style_plots()
+    return new_red_cuts
+
+
+def abundance_match(gals, box_size, debug=False):
+    '''
+    Returns the stellar mass cuts which match the density of the H&W catalog
+    along with the cuts in sSFR to make the quenched fraction correct at each
+    of the stellar mass cuts.
+    '''
+    # TODO: Make sure that all the catalogs are using units of log mstar
+    # TODO: figure out what sample_size is referring to
+
+    # Hard coded values to match against
+    d_hw = util.fits_to_pandas(fitsio.read('data/HW/Becker_CAM_mock.fits', lower=True))
+    sm_cuts = [9.8, 10.2, 10.6]
+    red_cut = -11
+
+    if debug:
+        plt.figure()
+    new_sm_cuts = density_match(gals, box_size, d_hw, sm_cuts, debug)
+
+    if debug:
+        plt.figure()
+        for cut in new_sm_cuts:
+            sns.kdeplot(gals[gals.mstar > cut].ssfr)
+
+    if debug:
+        plt.figure()
+    red_cuts = match_quenched_fraction(gals, new_sm_cuts, d_hw, sm_cuts, red_cut, debug)
+    return new_sm_cuts, red_cuts
 
 
 

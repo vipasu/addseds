@@ -2,6 +2,7 @@ import os
 import cPickle as pickle
 import numpy as np
 import errno
+import pandas as pd
 
 
 def fits_to_pandas(df):
