@@ -409,7 +409,6 @@ def density_profile(hosts, gals, test_gals, rmin=0.1, rmax=5.0, Nrp=10):
     # TODO: find out if there's a better way to split by the bin they're in
     # TODO: test if this should be digitizing mbins or lmbins
 
-    # TODO: Consider splitting the routine into two calls (one for real, one for pred)
     actual_counts = density_profile_counts(pos, hosts, box_size, nmbins, num_halos, r, rbins, col='ssfr')
     pred_counts = density_profile_counts(test_pos, hosts, box_size, nmbins, num_halos, r, rbins, col='pred')
     results.append(actual_counts)
@@ -503,3 +502,8 @@ def calculate_projected_z(df):
     return df
 
 
+def ssfr_from_sfr(sfr):
+    if sfr == 0.0:
+        return -12
+    else:
+        return np.log10(sfr)

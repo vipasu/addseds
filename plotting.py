@@ -1,6 +1,11 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 import util
+from matplotlib import rc
+
+rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
+#rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+rc('text', usetex=True)
 
 ## http://python4mpia.github.io/plotting/advanced.html
 ## Make sure to close figures
