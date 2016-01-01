@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import util
 from matplotlib import rc
+from mpl_toolkits.axes_grid1 import Grid
+
 
 rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
 #rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
@@ -55,7 +57,7 @@ def style_plots(ax=None):
         ax = plt.gca()
     ax.tick_params(which='minor',axis='both',color='k',length=4,width=1, direction='in')
     # labelsize=x, pad=y
-    ax.tick_params(which='major',axis='both',color='k',length=8,width=1, direction='in', pad=10)
+    ax.tick_params(which='major',axis='both',color='k',length=12,width=1, direction='in', pad=10)
     plt.minorticks_on()
     return ax
 
@@ -66,73 +68,71 @@ def style_plots(ax=None):
 ## TODO: Come up with data format for number density
 ## TODO: Come up with data format for wprp - done
 
-def plot_rwp(name, log_dir):
+def plot_rwp(name, log_dir, ax=None, labels=True):
     ### Load the data
     r, a_xis, a_vars, p_xis, p_vars = util.get_wprp_data(name, log_dir)
-    fig = plt.figure(figsize=(12, 12))
-    plt.xscale('log')
-    plt.errorbar(r, r * a_xis[0], r*a_vars[0], fmt='-o', color=red_col)
-    plt.errorbar(r, r * a_xis[1], r*a_vars[1], fmt='-o', color=blue_col)
-    plt.errorbar(r, r * p_xis[0], r*p_vars[0], fmt='--o', color=red_col, alpha=0.6)
-    plt.errorbar(r, r * p_xis[1], r*p_vars[1], fmt='--o', color=blue_col, alpha=0.6)
+    if ax is None:
+        fig = plt.figure(figsize=(12, 12))
+        ax = plt.gca()
+    ax.set_xscale('log')
+    ax.errorbar(r, r * a_xis[0], r*a_vars[0], fmt='-o', color=red_col)
+    ax.errorbar(r, r * a_xis[1], r*a_vars[1], fmt='-o', color=blue_col)
+    ax.errorbar(r, r * p_xis[0], r*p_vars[0], fmt='--o', color=red_col, alpha=0.6)
+    ax.errorbar(r, r * p_xis[1], r*p_vars[1], fmt='--o', color=blue_col, alpha=0.6)
 
     ### Formatting stuff
-    plt.ylabel('$r$ $w_p(r_p)$')
-    plt.xlabel('$r$ $[Mpc$ $h^{-1}]$')
-    plt.xlim(1e-1, 30)
-    return style_plots()
+    if labels:
+        ax.set_ylabel('$r$ $w_p(r_p)$')
+        ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
+    ax.set_xlim(9e-2, 30)
+    ax.set_ylim(0, 590)
+    return style_plots(ax)
 
 #def plot_rwp_bins(fname):
 
 def plot_HOD(name, log_dir):
     masses, num_halos, a_c, a_s, p_c, p_s = util.get_HOD_data(name, log_dir)
-    fig = plt.figure(figsize=(20,20))
+    fig = plt.figure(figsize=(14,14))
+    grid = Grid(fig, rect=111, nrows_ncols=(2,2), axes_pad=0, label_mode='L')
     p_scale = 8./7
     p_c = [counts * p_scale for counts in p_c]
     p_s = [counts * p_scale for counts in p_s]
 
+    ax1, ax2, ax3, ax4 = grid
     # TODO: Error bars
-    ax1 = fig.add_subplot(221) # combined HOD
     total_actual = a_c[0] + a_c[1] + a_s[0] + a_s[1]
     total_pred = p_c[0] + p_c[1] + p_s[0] + p_s[1]
-    plt.loglog(masses, total_actual/num_halos, color='k', lw=4, label='actual')
-    plt.loglog(masses, total_pred/num_halos, color='k', label='pred', alpha=0.6)
-    plt.xlabel('$M_{vir}$ $[M_\odot]$')
-    plt.ylabel('$N(M)$')
+    ax1.loglog(masses, total_actual/num_halos, color='k', lw=4, label='Actual')
+    ax1.loglog(masses, total_pred/num_halos, '--', color='k', label='Predicted', alpha=0.6)
 
-    ax2 = fig.add_subplot(222) # red vs blue HOD
     total_red = a_c[0] + a_s[0]
     total_blue = a_c[1] + a_s[1]
     pred_red = p_c[0] + p_s[0]
     pred_blue = p_c[1] + p_s[1]
-    plt.loglog(masses, total_red/num_halos, color=red_col, lw=4, label='input')
-    plt.loglog(masses, total_blue/num_halos, color=blue_col, lw=4, label='input')
-    plt.loglog(masses, pred_red/num_halos, '--', color=red_col, label='predicted', alpha=0.6)
-    plt.loglog(masses, pred_blue/num_halos, '--', color=blue_col, label='predicted', alpha=0.6)
-    plt.xlabel('$M_{vir}$ $[M_\odot]$')
-    plt.ylabel('$N(M)$')
+    ax2.loglog(masses, total_red/num_halos, color=red_col, lw=4, label='Actual')
+    ax2.loglog(masses, total_blue/num_halos, color=blue_col, lw=4)
+    ax2.loglog(masses, pred_red/num_halos, '--', color=red_col, label='Predicted', alpha=0.6)
+    ax2.loglog(masses, pred_blue/num_halos, '--', color=blue_col, alpha=0.6)
 
-    ax3 = fig.add_subplot(223) # red vs blue central HOD
-    plt.loglog(masses, a_c[0]/num_halos, color=red_col, lw=4, label='input')
-    plt.loglog(masses, a_c[1]/num_halos, color=blue_col, lw=4, label='input')
-    plt.loglog(masses, p_c[0]/num_halos, '--', color=red_col, label='predicted', alpha=0.6)
-    plt.loglog(masses, p_c[1]/num_halos, '--', color=blue_col, label='predicted', alpha=0.6)
-    plt.xlabel('$M_{vir}$ $[M_\odot]$')
-    plt.ylabel('$N_{central}(M)$')
+    ax3.loglog(masses, a_c[0]/num_halos, color=red_col, lw=4, label='Actual')
+    ax3.loglog(masses, a_c[1]/num_halos, color=blue_col, lw=4)
+    ax3.loglog(masses, p_c[0]/num_halos, '--', color=red_col, label='Predicted', alpha=0.6)
+    ax3.loglog(masses, p_c[1]/num_halos, '--', color=blue_col, alpha=0.6)
 
-    ax4 = fig.add_subplot(224) # red vs blue satellite HOD
-    plt.loglog(masses, a_s[0]/num_halos, color=red_col, lw=4, label='input')
-    plt.loglog(masses, a_s[1]/num_halos, color=blue_col, lw=4, label='input')
-    plt.loglog(masses, p_s[0]/num_halos, '--', color=red_col, label='predicted', alpha=0.6)
-    plt.loglog(masses, p_s[1]/num_halos, '--', color=blue_col, label='predicted', alpha=0.6)
-    plt.xlabel('$M_{vir}$ $[M_\odot]$')
-    plt.ylabel('$N_{satellites}(M)$')
+    ax4.loglog(masses, a_s[0]/num_halos, color=red_col, lw=4, label='Actual')
+    ax4.loglog(masses, a_s[1]/num_halos, color=blue_col, lw=4)
+    ax4.loglog(masses, p_s[0]/num_halos, '--', color=red_col, label='Predicted', alpha=0.6)
+    ax4.loglog(masses, p_s[1]/num_halos, '--', color=blue_col, alpha=0.6)
 
-    axes = [style_plots(ax) for ax in [ax1, ax2, ax3, ax4]]
-    for ax in axes:
-        ax.set_xlim(1e11, 1e15)
-        ax.set_ylim(1e-2, 1e3)
-        ax.legend(loc='best')
-    plt.tight_layout()
+    labels = ['Combined', 'Combined', 'Centrals', 'Satellites']
+    for ax, lab in zip(grid, labels):
+        ax.xaxis.labelpad = 17
+        ax.set_xlabel('$M_{vir}/ M_\odot$')
+        ax.set_ylabel('$N(M)$')
+        ax.set_xlim(5e11, 1.1e15)
+        ax.set_ylim(9e-3, 2e3)
+        ax.legend(loc=2, fontsize=20)
+        ax.text(1e12, 10, lab, fontsize=30)
+        style_plots(ax)
 
-    return  axes
+    return grid
