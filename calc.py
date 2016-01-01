@@ -42,7 +42,7 @@ def make_pos(gals, pos_tags=['x', 'y', 'z']):
 
 
 def make_r_scale(rmin, rmax, Nrp):
-    rbins = np.logspace(np.log10(rpmin), np.log10(rpmax), Nrp+1)
+    rbins = np.logspace(np.log10(rmin), np.log10(rmax), Nrp+1)
     r = np.sqrt(rbins[1:]*rbins[:-1])
     return r, rbins
 
@@ -409,11 +409,10 @@ def density_profile(hosts, gals, box_size, rmin=0.1, rmax=5.0, Nrp=10):
 
     for lim in mlims:
         host_sel = hosts[(hosts.mvir > lim[0]) & (hosts.mvir < lim[1])]
-        host_ids = set(hosts.id.values)
+        host_ids = set(host_sel.id.values)
         gal_sel = gals.copy()
         gal_sel['include'] = [upid in host_ids for upid in gal_sel.upid.values]
         gal_sel = gal_sel[gal_sel['include'] == True]
-
         host_sel = host_sel.reset_index(drop=True)
         gal_sel = gal_sel.reset_index(drop=True)
         counts = density_profile_counts(gal_sel, host_sel, box_size, r, rbins, rmax)

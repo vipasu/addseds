@@ -154,8 +154,8 @@ def plot_density_profile(r, m, ax):
     ax.loglog(r, num_pred_red, '--', color=red_col, label='pred', alpha=0.5)
     ax.loglog(r, num_blue, '--', color=blue_col, lw=4, label='input')
     ax.loglog(r, num_pred_blue, '--', color=blue_col, label='pred', alpha=0.5)
-    ax.set_xlim(9e-2, 4e1)
-    ax.set_ylim(9e-5, 3e1)
+    ax.set_xlim(9e-2, 6)
+    ax.set_ylim(5e-4, 2e1)
     ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
     ax.set_ylabel(r'$n_{halo}$')
     style_plots(ax)
@@ -163,7 +163,7 @@ def plot_density_profile(r, m, ax):
 
 def plot_density_profile_grid(name, log_dir):
     fnames = [''.join([name, desc, '.dat']) for desc in ['_all', '_quenched', '_sf']]
-    fig = plt.figure(figsize=(20,16))
+    fig = plt.figure(figsize=(21,14))
     grid = Grid(fig, rect=111, nrows_ncols=(3,3), axes_pad=0, label_mode='L')
     labels = ['All Centrals', 'Quenched Centrals', 'SF Centrals']
     for row, (label, name) in enumerate(zip(labels,fnames)):
@@ -174,11 +174,14 @@ def plot_density_profile_grid(name, log_dir):
 
 
 def annotate_density(grid, label='Text'):
-    grid[8].text(1.3e-1, 1e-3, label, fontsize=45)
-    ml = '\mathrm{log}$ $M_{\mathrm{vir}}'
+    grid[8].text(1.3e-1, 5e-3, label, fontsize=45)
+    ml = '\mathrm{log} M_{\mathrm{vir}}'
+
     mass_labels = [''.join(['$',str(m-.25), '<', ml, '<', str(m+.25), '$']) for m in [12, 13, 14]]
     for i, label in enumerate(mass_labels):
-        grid[i].text(.13, 2e-4, label, fontsize=20)
+        #grid[i].text(.11, 8e-4, label, fontsize=20)
+        grid[i].text(.8, 3, label, fontsize=22)
+
     desc_labels = [''.join([name, ' Centrals']) for name in ['All', 'Quenched', 'SF']]
     for i, label in enumerate(desc_labels):
-        grid[3 * i].text(1.3e-1, 9, label, fontsize=30)
+        grid[3 * i].text(.109, 5, label, fontsize=36)
