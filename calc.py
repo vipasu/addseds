@@ -362,57 +362,63 @@ def HOD(d0, test_gals, msmin=9.8, msmax=None):
     return results
 
 
-def density_profile_counts(pos, hosts, box_size, nmbins, num_halos, r, rbins, col='ssfr'):
+def density_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
+    num_halos = len(hosts)
     results = []
+    pos = make_pos(gals)
+    pos_tags = ['x', 'y', 'zr']
     with fast3tree(pos) as tree:
         tree.set_boundaries(0.0, box_size)
-        for i in xrange(nmbins):
-            mass_select = hosts[hosts['mbin_idx'] == i]
-            # verify whether this should be r or rbins
-            num_red, num_blue = [np.zeros(len(r))] * 2
-            for j, halo in mass_select.iterrows():
-                center = [halo[tag] for tag in pos_tags]
-                idxs, pos = tree.query_radius(center, rmax, periodic=box_size, output='both')
-                rs = get_3d_distance(center, pos, box_size=box_size)
-                msk = rs > 0
-                rs = rs[msk]
-                idxs = idxs[msk]
-                for dist, sat_idx in zip(rs, idxs):
-                    rbin = np.digitize([dist], rbins)
-                    # indexing reflects return values from tree
-                    if d_gals[col].values[sat_idx] < -11:
-                        num_red[rbin] += 1
-                    else:
-                        num_blue[rbin] += 1
-            volumes = [4./3 * np.pi * rad**3 for rad in r] # maybe rbins
-            # Do these need any cumsums? # don't think so
-            for counts in [num_red, num_blue]:
-                counts = counts / num_halos[i] / volumes
-            results.append([num_red, num_blue])
+        #mass_select = hosts[hosts['mbin_idx'] == i]
+        # verify whether this should be r or rbins
+        num_red, num_blue = np.zeros(len(r)), np.zeros(len(r))
+        num_pred_red, num_pred_blue = np.zeros(len(r)), np.zeros(len(r))
+        for j, halo in hosts.iterrows():
+            center = [halo[tag] for tag in pos_tags]
+            idxs, pos = tree.query_radius(center, rmax, periodic=box_size, output='both')
+            rs = get_3d_distance(center, pos, box_size=box_size)
+            msk = rs > 0
+            rs = rs[msk]
+            idxs = idxs[msk]
+            for dist, sat_idx in zip(rs, idxs):
+                rbin = np.digitize([dist], rbins) - 1 # -1 for the r vs rbin
+                # indexing reflects return values from tree
+                if gals['ssfr'].values[sat_idx] < -11:
+                    num_red[rbin] += 1
+                else:
+                    num_blue[rbin] += 1
+                if gals['pred'].values[sat_idx] < -11:
+                    num_pred_red[rbin] += 1
+                else:
+                    num_pred_blue[rbin] += 1
+        volumes = [4./3 * np.pi * rad**3 for rad in r] # maybe rbins
+        # Do these need any cumsums? # don't think so
+        for counts in [num_red, num_blue, num_pred_red, num_pred_blue]:
+            results.append( counts.cumsum() / num_halos / volumes)
     return results
 
-def density_profile(hosts, gals, test_gals, rmin=0.1, rmax=5.0, Nrp=10):
+def density_profile(hosts, gals, box_size, rmin=0.1, rmax=5.0, Nrp=10):
     r, rbins = make_r_scale(rmin, rmax, Nrp)
     results = [r]
-
-    pos = make_pos(gals)
+    gals = gals[gals.upid != -1]
 
     mvir = hosts['mvir'].values
-    mmin, mmax = np.min(mvir), np.max(mvir)
-    nmbins = 3
-    lmbins = np.logspace(np.log10(mmin), np.log10(mmax), nmbins+1)
-    mbins = 10**lmbins
-    print mbins
+    delta = 0.25
+    masses = [12,13,14]
+    mlims = [[10**(mass-delta), 10**(mass+delta)] for mass in masses]
 
-    num_halos, _ = np.histogram(mvir, mbins)
-    hosts['mbin_idx'] = np.digitize(mvir, mbins)
-    # TODO: find out if there's a better way to split by the bin they're in
-    # TODO: test if this should be digitizing mbins or lmbins
+    for lim in mlims:
+        host_sel = hosts[(hosts.mvir > lim[0]) & (hosts.mvir < lim[1])]
+        host_ids = set(hosts.id.values)
+        gal_sel = gals.copy()
+        gal_sel['include'] = [upid in host_ids for upid in gal_sel.upid.values]
+        gal_sel = gal_sel[gal_sel['include'] == True]
 
-    actual_counts = density_profile_counts(pos, hosts, box_size, nmbins, num_halos, r, rbins, col='ssfr')
-    pred_counts = density_profile_counts(test_pos, hosts, box_size, nmbins, num_halos, r, rbins, col='pred')
-    results.append(actual_counts)
-    results.append(pred_counts)
+        host_sel = host_sel.reset_index(drop=True)
+        gal_sel = gal_sel.reset_index(drop=True)
+        counts = density_profile_counts(gal_sel, host_sel, box_size, r, rbins, rmax)
+        results.append(counts)
+
     return results
 
 

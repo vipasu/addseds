@@ -146,3 +146,39 @@ def plot_HOD(name, log_dir):
         style_plots(ax)
 
     return grid
+
+
+def plot_density_profile(r, m, ax):
+    num_red, num_blue, num_pred_red, num_pred_blue = m
+    ax.loglog(r, num_red, '--', color=red_col, lw=4, label='input')
+    ax.loglog(r, num_pred_red, '--', color=red_col, label='pred', alpha=0.5)
+    ax.loglog(r, num_blue, '--', color=blue_col, lw=4, label='input')
+    ax.loglog(r, num_pred_blue, '--', color=blue_col, label='pred', alpha=0.5)
+    ax.set_xlim(9e-2, 4e1)
+    ax.set_ylim(9e-5, 3e1)
+    ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
+    ax.set_ylabel(r'$n_{halo}$')
+    style_plots(ax)
+
+
+def plot_density_profile_grid(name, log_dir):
+    fnames = [''.join([name, desc, '.dat']) for desc in ['_all', '_quenched', '_sf']]
+    fig = plt.figure(figsize=(20,16))
+    grid = Grid(fig, rect=111, nrows_ncols=(3,3), axes_pad=0, label_mode='L')
+    labels = ['All Centrals', 'Quenched Centrals', 'SF Centrals']
+    for row, (label, name) in enumerate(zip(labels,fnames)):
+        r, m1, m2, m3 = util.get_density_profile_data(name, log_dir)
+        for i, m in enumerate([m1, m2, m3]):
+            plot_density_profile(r, m, grid[row * 3 + i])
+    return grid
+
+
+def annotate_density(grid, label='Text'):
+    grid[8].text(1.3e-1, 1e-3, label, fontsize=45)
+    ml = '\mathrm{log}$ $M_{\mathrm{vir}}'
+    mass_labels = [''.join(['$',str(m-.25), '<', ml, '<', str(m+.25), '$']) for m in [12, 13, 14]]
+    for i, label in enumerate(mass_labels):
+        grid[i].text(.13, 2e-4, label, fontsize=20)
+    desc_labels = [''.join([name, ' Centrals']) for name in ['All', 'Quenched', 'SF']]
+    for i, label in enumerate(desc_labels):
+        grid[3 * i].text(1.3e-1, 9, label, fontsize=30)

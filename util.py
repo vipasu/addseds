@@ -117,3 +117,9 @@ def get_HOD_data(name, log_dir):
     a_c, a_s = actual   # centrals and satellites
     p_c, p_s = pred
     return masses, num_halos, a_c, a_s, p_c, p_s
+
+
+def get_density_profile_data(name, log_dir):
+    results = load_data(name, log_dir)
+    r, m1, m2, m3 = results
+    return r, m1, m2, m3
