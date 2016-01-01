@@ -68,17 +68,27 @@ def style_plots(ax=None):
 ## TODO: Come up with data format for number density
 ## TODO: Come up with data format for wprp - done
 
-def plot_rwp(name, log_dir, ax=None, labels=True):
+def plot_rwp(name, log_dir, ax=None, labels=True, fill=False):
     ### Load the data
     r, a_xis, a_vars, p_xis, p_vars = util.get_wprp_data(name, log_dir)
     if ax is None:
         fig = plt.figure(figsize=(12, 12))
         ax = plt.gca()
     ax.set_xscale('log')
-    ax.errorbar(r, r * a_xis[0], r*a_vars[0], fmt='-o', color=red_col)
-    ax.errorbar(r, r * a_xis[1], r*a_vars[1], fmt='-o', color=blue_col)
-    ax.errorbar(r, r * p_xis[0], r*p_vars[0], fmt='--o', color=red_col, alpha=0.6)
-    ax.errorbar(r, r * p_xis[1], r*p_vars[1], fmt='--o', color=blue_col, alpha=0.6)
+    if fill:
+        ax.fill_between(r, r*(a_xis[0] - a_vars[0]), r*(a_xis[0] + a_vars[0]),  color=red_col, alpha=0.5)
+        ax.fill_between(r, r*(a_xis[1]- a_vars[1]), r*(a_xis[1]+ a_vars[1]), color=blue_col, alpha=0.5)
+        ax.fill_between(r, r*(p_xis[0] - p_vars[0]), r*(p_xis[0] + p_vars[0]), color=red_col, alpha=0.2)
+        ax.fill_between(r, r*(p_xis[1] - p_vars[1]), r*(p_xis[1] + p_vars[1]), color=blue_col, alpha=0.2)
+        ax.plot(r, r * a_xis[0], '-o', color=red_col)
+        ax.plot(r, r * a_xis[1], '-o', color=blue_col)
+        ax.plot(r, r * p_xis[0], '--o', color=red_col, alpha=0.6)
+        ax.plot(r, r * p_xis[1], '--o', color=blue_col, alpha=0.6)
+    else:
+        ax.errorbar(r, r * a_xis[0], r*a_vars[0], fmt='-o', color=red_col)
+        ax.errorbar(r, r * a_xis[1], r*a_vars[1], fmt='-o', color=blue_col)
+        ax.errorbar(r, r * p_xis[0], r*p_vars[0], fmt='--o', color=red_col, alpha=0.6)
+        ax.errorbar(r, r * p_xis[1], r*p_vars[1], fmt='--o', color=blue_col, alpha=0.6)
 
     ### Formatting stuff
     if labels:
