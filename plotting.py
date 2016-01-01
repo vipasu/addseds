@@ -134,7 +134,7 @@ def plot_HOD(name, log_dir):
     ax4.loglog(masses, p_s[0]/num_halos, '--', color=red_col, label='Predicted', alpha=0.6)
     ax4.loglog(masses, p_s[1]/num_halos, '--', color=blue_col, alpha=0.6)
 
-    labels = ['Combined', 'Combined', 'Centrals', 'Satellites']
+    labels = ['Total', 'SF/Quenched', 'Centrals', 'Satellites']
     for ax, lab in zip(grid, labels):
         ax.xaxis.labelpad = 17
         ax.set_xlabel('$M_{vir}/ M_\odot$')

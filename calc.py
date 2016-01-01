@@ -346,10 +346,8 @@ def HOD(d0, test_gals, msmin=9.8, msmax=None):
         bin_id = np.digitize([halo['mvir']], edges, right=True)[0]
         halo_id_to_bin[halo['id']] = min(bin_id, nbins-1)
 
-    print len(satellites), len(centrals)
     num_actual_blue_s, num_actual_red_s = color_counts_for_HOD(halo_id_to_bin, satellites, nbins, id='upid', col='ssfr')
     num_actual_blue_c, num_actual_red_c = color_counts_for_HOD(halo_id_to_bin, centrals, nbins, id='id', col='ssfr')
-    print num_actual_red_c, num_actual_blue_c
 
     pred_sats = test_gals[test_gals['upid'] != -1]
     pred_cents = test_gals[test_gals['upid'] == -1]
