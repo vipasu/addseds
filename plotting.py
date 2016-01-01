@@ -102,7 +102,7 @@ def plot_rwp(name, log_dir, ax=None, labels=True, fill=False):
 
 def plot_HOD(name, log_dir):
     masses, num_halos, a_c, a_s, p_c, p_s = util.get_HOD_data(name, log_dir)
-    fig = plt.figure(figsize=(14,14))
+    fig = plt.figure(figsize=(11,11))
     grid = Grid(fig, rect=111, nrows_ncols=(2,2), axes_pad=0, label_mode='L')
     p_scale = 8./7
     p_c = [counts * p_scale for counts in p_c]
@@ -139,10 +139,10 @@ def plot_HOD(name, log_dir):
         ax.xaxis.labelpad = 17
         ax.set_xlabel('$M_{vir}/ M_\odot$')
         ax.set_ylabel('$N(M)$')
-        ax.set_xlim(5e11, 1.1e15)
-        ax.set_ylim(9e-3, 2e3)
-        ax.legend(loc=2, fontsize=20)
-        ax.text(1e12, 10, lab, fontsize=30)
+        ax.set_xlim(5e11, 1.7e15)
+        ax.set_ylim(9e-3, 3e3)
+        #ax.legend(loc=2, fontsize=20)
+        ax.text(1e12, 1e2, lab, fontsize=36)
         style_plots(ax)
 
     return grid
