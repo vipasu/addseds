@@ -83,3 +83,56 @@ def plot_rwp(name, log_dir):
     return style_plots()
 
 #def plot_rwp_bins(fname):
+
+def plot_HOD(name, log_dir):
+    masses, num_halos, a_c, a_s, p_c, p_s = util.get_HOD_data(name, log_dir)
+    fig = plt.figure(figsize=(20,20))
+    p_scale = 8./7
+    p_c = [counts * p_scale for counts in p_c]
+    p_s = [counts * p_scale for counts in p_s]
+
+    # TODO: Error bars
+    ax1 = fig.add_subplot(221) # combined HOD
+    total_actual = a_c[0] + a_c[1] + a_s[0] + a_s[1]
+    total_pred = p_c[0] + p_c[1] + p_s[0] + p_s[1]
+    plt.loglog(masses, total_actual/num_halos, color='k', lw=4, label='actual')
+    plt.loglog(masses, total_pred/num_halos, color='k', label='pred', alpha=0.6)
+    plt.xlabel('$M_{vir}$ $[M_\odot]$')
+    plt.ylabel('$N(M)$')
+
+    ax2 = fig.add_subplot(222) # red vs blue HOD
+    total_red = a_c[0] + a_s[0]
+    total_blue = a_c[1] + a_s[1]
+    pred_red = p_c[0] + p_s[0]
+    pred_blue = p_c[1] + p_s[1]
+    plt.loglog(masses, total_red/num_halos, color=red_col, lw=4, label='input')
+    plt.loglog(masses, total_blue/num_halos, color=blue_col, lw=4, label='input')
+    plt.loglog(masses, pred_red/num_halos, '--', color=red_col, label='predicted', alpha=0.6)
+    plt.loglog(masses, pred_blue/num_halos, '--', color=blue_col, label='predicted', alpha=0.6)
+    plt.xlabel('$M_{vir}$ $[M_\odot]$')
+    plt.ylabel('$N(M)$')
+
+    ax3 = fig.add_subplot(223) # red vs blue central HOD
+    plt.loglog(masses, a_c[0]/num_halos, color=red_col, lw=4, label='input')
+    plt.loglog(masses, a_c[1]/num_halos, color=blue_col, lw=4, label='input')
+    plt.loglog(masses, p_c[0]/num_halos, '--', color=red_col, label='predicted', alpha=0.6)
+    plt.loglog(masses, p_c[1]/num_halos, '--', color=blue_col, label='predicted', alpha=0.6)
+    plt.xlabel('$M_{vir}$ $[M_\odot]$')
+    plt.ylabel('$N_{central}(M)$')
+
+    ax4 = fig.add_subplot(224) # red vs blue satellite HOD
+    plt.loglog(masses, a_s[0]/num_halos, color=red_col, lw=4, label='input')
+    plt.loglog(masses, a_s[1]/num_halos, color=blue_col, lw=4, label='input')
+    plt.loglog(masses, p_s[0]/num_halos, '--', color=red_col, label='predicted', alpha=0.6)
+    plt.loglog(masses, p_s[1]/num_halos, '--', color=blue_col, label='predicted', alpha=0.6)
+    plt.xlabel('$M_{vir}$ $[M_\odot]$')
+    plt.ylabel('$N_{satellites}(M)$')
+
+    axes = [style_plots(ax) for ax in [ax1, ax2, ax3, ax4]]
+    for ax in axes:
+        ax.set_xlim(1e11, 1e15)
+        ax.set_ylim(1e-2, 1e3)
+        ax.legend(loc='best')
+    plt.tight_layout()
+
+    return  axes

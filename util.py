@@ -111,3 +111,9 @@ def get_wprp_data(name, log_dir):
     return r, a_xis, a_vars, p_xis, p_vars
 
 
+def get_HOD_data(name, log_dir):
+    results = load_data(name, log_dir)
+    masses, num_halos, actual, pred = results
+    a_c, a_s = actual   # centrals and satellites
+    p_c, p_s = pred
+    return masses, num_halos, a_c, a_s, p_c, p_s

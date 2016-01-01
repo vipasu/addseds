@@ -311,17 +311,16 @@ def color_counts_for_HOD(id_to_bin, objects, nbins, red_cut=-11.0, id='upid', co
     blue_counts, red_counts = np.zeros(nbins), np.zeros(nbins)
     bins = pd.Series(objects[id]).map(id_to_bin)
     cols = pd.Series(objects[col]).map(lambda x: x < red_cut)
-    for bin_id, red in zip(bins, col):
+    for bin_id, red in zip(bins, cols):
         if not np.isnan(bin_id):
             if red:
                 red_counts[bin_id] += 1
             else:
                 blue_counts[bin_id] += 1
+    return blue_counts, red_counts
 
 
-
-
-def HOD(d0, test_gals, msmin, msmax=None):
+def HOD(d0, test_gals, msmin=9.8, msmax=None):
     mvir = d0['mvir'].values
     red_cut = -11.0
     # create equal spacing on log scale
@@ -347,16 +346,19 @@ def HOD(d0, test_gals, msmin, msmax=None):
         bin_id = np.digitize([halo['mvir']], edges, right=True)[0]
         halo_id_to_bin[halo['id']] = min(bin_id, nbins-1)
 
-    num_actual_blue_s, num_actual_red_s = color_counts_for_HOD(halo_id_to_bin, satellites, id='upid', col='ssfr')
-    num_actual_blue_c, num_actual_red_c = color_counts_for_HOD(halo_id_to_bin, centrals, id='upid', col='ssfr')
+    print len(satellites), len(centrals)
+    num_actual_blue_s, num_actual_red_s = color_counts_for_HOD(halo_id_to_bin, satellites, nbins, id='upid', col='ssfr')
+    num_actual_blue_c, num_actual_red_c = color_counts_for_HOD(halo_id_to_bin, centrals, nbins, id='id', col='ssfr')
+    print num_actual_red_c, num_actual_blue_c
 
     pred_sats = test_gals[test_gals['upid'] != -1]
     pred_cents = test_gals[test_gals['upid'] == -1]
-    num_pred_blue_s, num_pred_red_s = color_counts_for_HOD(halo_id_to_bin, pred_sats, id='upid', col='pred')
-    num_pred_blue_c, num_pred_red_c = color_counts_for_HOD(halo_id_to_bin, pred_cents, id='upid', col='pred')
+    num_pred_blue_s, num_pred_red_s = color_counts_for_HOD(halo_id_to_bin, pred_sats, nbins, id='upid', col='pred')
+    num_pred_blue_c, num_pred_red_c = color_counts_for_HOD(halo_id_to_bin, pred_cents, nbins, id='id', col='pred')
     # TODO: verify that I should be comparing the real color of the full thing to 8/7 times the predicted ones
     results = []
     results.append(centers)
+    results.append(num_halos)
     results.append([[num_actual_red_c, num_actual_blue_c], [num_actual_red_s, num_actual_blue_s]])
     results.append([[num_pred_red_c, num_pred_blue_c], [num_pred_red_s, num_pred_blue_s]])
     return results
