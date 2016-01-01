@@ -213,7 +213,8 @@ def wprp_bins(gals, num_splits, box_size, rpmin=0.1, rpmax=20.0, Nrp=25):
         actual_dfs.append(gals[(gals.ssfr > bins[i]) & (gals.ssfr < bins[i+1])])
         pred_dfs.append(gals[(gals.pred > bins[i]) & (gals.pred < bins[i+1])])
 
-    results = []
+    r, rbins = make_r_scale(rpmin, rpmax, Nrp)
+    results = [r]
     for dfs in [actual_dfs, pred_dfs]:
         temp = []
         for df in dfs:
