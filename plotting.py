@@ -77,6 +77,7 @@ def plot_rwp(r, xi, var, ax, actual, fmt, color, fill):
     else:
         alpha = 1 if actual else 0.6
         ax.errorbar(r, r * xi, r * var, fmt=fmt, color=color, alpha=alpha)
+    return style_plots(ax)
 
 
 def plot_rwp_split(name, log_dir, ax=None, fill=False):
@@ -174,15 +175,14 @@ def plot_density_profile(r, m, ax):
     ax.set_ylim(5e-4, 2e1)
     ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
     ax.set_ylabel(r'$n_{halo}$')
-    style_plots(ax)
+    return style_plots(ax)
 
 
 def plot_density_profile_grid(name, log_dir):
     fnames = [''.join([name, desc, '.dat']) for desc in ['_all', '_quenched', '_sf']]
-    fig = plt.figure(figsize=(21,14))
+    fig = plt.figure(figsize=(17,10.5))
     grid = Grid(fig, rect=111, nrows_ncols=(3,3), axes_pad=0, label_mode='L')
-    labels = ['All Centrals', 'Quenched Centrals', 'SF Centrals']
-    for row, (label, name) in enumerate(zip(labels,fnames)):
+    for row, name in enumerate(fnames):
         r, m1, m2, m3 = util.get_density_profile_data(name, log_dir)
         for i, m in enumerate([m1, m2, m3]):
             plot_density_profile(r, m, grid[row * 3 + i])
@@ -190,14 +190,17 @@ def plot_density_profile_grid(name, log_dir):
 
 
 def annotate_density(grid, label='Text'):
-    grid[8].text(1.3e-1, 5e-3, label, fontsize=45)
+    grid[8].text(1.3e-1, 5e-3, label, fontsize=40)
     ml = '\mathrm{log} M_{\mathrm{vir}}'
 
-    mass_labels = [''.join(['$',str(m-.25), '<', ml, '<', str(m+.25), '$']) for m in [12, 13, 14]]
+    # mass_labels = [''.join(['$',str(m-.25), '<', ml, '<', str(m+.25), '$']) for m in [12, 13, 14]]
+    mass_labels = [''.join(['$|', ml, '-', str(m), '| < 0.25$']) for m in [12,13,14]]
+    ml_pos = [(0.3, 0.2), (0.12, 1.2e-3), (0.12, 1.2e-3)]
     for i, label in enumerate(mass_labels):
         #grid[i].text(.11, 8e-4, label, fontsize=20)
-        grid[i].text(.8, 3, label, fontsize=22)
+        x,y = ml_pos[i]
+        grid[i].text(x, y, label, fontsize=25)
 
     desc_labels = [''.join([name, ' Centrals']) for name in ['All', 'Quenched', 'SF']]
     for i, label in enumerate(desc_labels):
-        grid[3 * i].text(.109, 5, label, fontsize=36)
+        grid[3 * i].text(.109, 4, label, fontsize=30)
