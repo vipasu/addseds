@@ -130,6 +130,7 @@ def get_density_profile_data(name, log_dir):
     r, m1, m2, m3 = results
     return r, m1, m2, m3
 
+
 def get_fq_data(name, log_dir):
     results = load_data(name, log_dir)
     m, actual, pred = results
@@ -142,3 +143,15 @@ def get_fq_data(name, log_dir):
     total_fq = [(c_actual[0] + s_actual[0]) /(c_actual[0] + c_actual[1] + s_actual[0] + s_actual[1])]
     total_fq.append((c_pred[0] + s_pred[0]) /(c_pred[0] + c_pred[1] + s_pred[0] + s_pred[1]))
     return m, central_fq, sat_fq, total_fq
+
+
+def get_fq_vs_d_data(name, log_dir):
+    results = load_data(name, log_dir)
+    cutoffs, d, actual, pred = results
+    actual_fq, pred_fq = [], []
+    for pair in actual:
+        actual_fq.append(pair[0]/ (pair[0] + pair[1]))
+    for pair in pred:
+        pred_fq.append(pair[0]/ (pair[0] + pair[1]))
+    return cutoffs, d, actual_fq, pred_fq
+

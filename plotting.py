@@ -91,7 +91,7 @@ def plot_rwp_split(name, log_dir, ax=None, fill=False):
     plot_rwp(r, a_xis[1], a_vars[1], ax, True, '-o', blue_col, fill)
     plot_rwp(r, p_xis[0], p_vars[0], ax, False, '--o', red_col, fill)
     plot_rwp(r, p_xis[1], p_vars[1], ax, False, '--o', blue_col, fill)
-    ax.set_ylabel('$r$ $w_p(r_p)$')
+    ax.set_ylabel('$r$ $w_p(r_p)$ $[Mpc$ $h^{-1}]$')
     ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
     ax.set_xlim(9e-2, 30)
     ax.set_ylim(0, 590)
@@ -109,7 +109,7 @@ def plot_rwp_bins(name, log_dir, ax=None, fill=False):
     for col, dat in zip(colors, pred):
         xi, var = dat
         plot_rwp(r, xi, var, ax, False, '--o', col, fill)
-    ax.set_ylabel('$r$ $w_p(r_p)$')
+    ax.set_ylabel('$r$ $w_p(r_p)$ $[Mpc$ $h^{-1}]$')
     ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
     ax.set_xscale('log')
     ax.set_xlim(9e-2, 30)
@@ -174,7 +174,7 @@ def plot_density_profile(r, m, ax):
     ax.set_xlim(9e-2, 6)
     ax.set_ylim(5e-4, 2e1)
     ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
-    ax.set_ylabel(r'$n_{halo}$')
+    ax.set_ylabel(r'$n(r)$')
     return style_plots(ax)
 
 
@@ -205,23 +205,42 @@ def annotate_density(grid, label='Text'):
     for i, label in enumerate(desc_labels):
         grid[3 * i].text(.109, 4, label, fontsize=30)
 
-def plot_quenched_fraction(name, log_dir):
+def plot_quenched_fraction(name, log_dir, ax=None):
     masses, central_fq, satellite_fq, total_fq = util.get_fq_data(name, log_dir)
     dats = [central_fq, satellite_fq, total_fq]
-    fig = plt.figure(figsize=(10,10))
-    ax = plt.gca()
+    if ax is None:
+        fig = plt.figure(figsize=(10,10))
+        ax = plt.gca()
     ax.set_xscale('log')
     ax.set_xlabel('$M_{\mathrm{vir}} / M_{\odot}$')
-    ax.set_ylabel('$\mathrm{Quenched}$' + ' $\mathrm{Fraction}$' )
-    ax.set_ylim(0, 1.05)
-    ax.set_xlim(5e11,1e15)
-    colors = [sns.xkcd_rgb['magenta'], sns.xkcd_rgb['green'], sns.xkcd_rgb['black']]
+    ax.set_ylabel('$\mathrm{Quenched}$' + ' $\mathrm{Fraction}$')
+    ax.set_ylim(0, 1.15)
+    ax.set_xlim(5e11,1.4e15)
+    colors = [red_col, blue_col, sns.xkcd_rgb['black']]
     labels = ['Centrals', 'Satellites', 'Combined']
 
     for fq, color, label in zip(dats, colors, labels):
-        plt.plot(masses, fq[0], label=label, color=color)
-        plt.plot(masses, fq[1], '--', color=color, alpha=0.6)
-    ax.legend(loc='best')
+        ax.plot(masses, fq[0], label=label, color=color)
+        ax.plot(masses, fq[1], '--', color=color, alpha=0.6)
+    ax.legend(loc=8)
 
+    return style_plots(ax)
+
+
+def plot_quenched_fraction_vs_density(name, log_dir, ax=None):
+    cutoffs, d, actual_fq, pred_fq = util.get_fq_vs_d_data(name, log_dir)
+    if ax is None:
+        fig = plt.figure(figsize=(10,10))
+        ax = plt.gca()
+    ax.set_xlabel('$\mathrm{log}$ $\Sigma_5$')
+    ax.set_ylabel('$\mathrm{Quenched}$' + ' $\mathrm{Fraction}$')
+    ax.set_ylim(-0.15, 1.2)
+    ax.set_xlim(-0.6, 1.3)
+    colors = sns.blend_palette([blue_col, red_col], len(cutoffs) -1)
+    for fq, cut, col in zip(actual_fq, cutoffs[1:], colors):
+        ax.plot(d, fq, color=col, lw=3, label='$M_* < ' + str(cut) + '$')
+    for fq, cut, col in zip(pred_fq, cutoffs[1:], colors):
+        ax.plot(d, fq, '--', color=col, alpha=0.6)
+    ax.legend(loc='best')
     return style_plots(ax)
 

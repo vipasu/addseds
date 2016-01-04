@@ -422,6 +422,15 @@ def density_profile(hosts, gals, box_size, rmin=0.1, rmax=5.0, Nrp=10):
     return results
 
 
+def counts_for_fq(df, red_cut, col, x_vals, bins):
+    sel = np.where(df[col])
+    red_sel = np.where(df[col] < red_cut)[0]
+    blue_sel = np.where(df[col] > red_cut)[0]
+    red_counts,_ = np.histogram(x_vals[red_sel], bins)
+    blue_counts,_ = np.histogram(x_vals[blue_sel], bins)
+    return [red_counts.astype(float), blue_counts.astype(float)]
+
+
 def quenched_fraction(gals, red_cut=-11.0, nbins=14):
     masses = gals.mvir.values
     cents = gals[gals.upid == -1]
@@ -430,7 +439,7 @@ def quenched_fraction(gals, red_cut=-11.0, nbins=14):
     sats = sats.reset_index(drop=True)
 
     mbins = np.logspace(np.log10(np.min(masses)), np.log10(np.max(masses)), nbins)
-    centers = np.sqrt(mbins[:-1] * mbins[1:]) 
+    centers = np.sqrt(mbins[:-1] * mbins[1:])
     results = [centers]
     fq_actual, fq_pred = [], []
 
@@ -438,18 +447,27 @@ def quenched_fraction(gals, red_cut=-11.0, nbins=14):
         temp = []
         for dat in [cents, sats]:
             m = dat.mvir.values
-            red_sel = np.where(dat[col] < red_cut)[0]
-            blue_sel = np.where(dat[col] > red_cut)[0]
-            red_counts,_ = np.histogram(m[red_sel], mbins)
-            blue_counts,_ = np.histogram(m[blue_sel], mbins)
-            temp.append([red_counts.astype(float), blue_counts.astype(float)])
+            temp.append(counts_for_fq(dat, red_cut, col, m, mbins))
         results.append(temp)
 
     return results
 
 
-def density_vs_fq():
-    pass
+def density_vs_fq(gals, cutoffs, red_cut=-11, nbins=10):
+    sections = [gals[(gals['mstar'] >= cutoffs[i]) & (gals['mstar'] < cutoffs[i+1])] for i in xrange(len(cutoffs)-1)]
+    s5 = np.log10(gals['$\Sigma_{5}$'].values)
+    dbins = np.linspace(min(s5), max(s5), nbins)
+    centers = (dbins[:-1] + dbins[1:])/2 # average because we're already in logspace
+    results = [cutoffs, centers]
+
+    for col in ['ssfr', 'pred']:
+        temp = []
+        for section in sections:
+            dists = np.log10(section['$\Sigma_{5}$'].values)
+            temp.append(counts_for_fq(section, red_cut, col, dists, dbins))
+        results.append(temp)
+    return results
+
 
 
 def density_match(gals, box_size, HW, sm_cuts, debug=False):
