@@ -422,6 +422,32 @@ def density_profile(hosts, gals, box_size, rmin=0.1, rmax=5.0, Nrp=10):
     return results
 
 
+def quenched_fraction(gals, red_cut=-11.0, nbins=14):
+    masses = gals.mvir.values
+    cents = gals[gals.upid == -1]
+    sats = gals[gals.upid != -1]
+    cents = cents.reset_index(drop=True)
+    sats = sats.reset_index(drop=True)
+
+    mbins = np.logspace(np.log10(np.min(masses)), np.log10(np.max(masses)), nbins)
+    centers = np.sqrt(mbins[:-1] * mbins[1:]) 
+    results = [centers]
+    fq_actual, fq_pred = [], []
+
+    for col in ['ssfr', 'pred']:
+        temp = []
+        for dat in [cents, sats]:
+            m = dat.mvir.values
+            red_sel = np.where(dat[col] < red_cut)[0]
+            blue_sel = np.where(dat[col] > red_cut)[0]
+            red_counts,_ = np.histogram(m[red_sel], mbins)
+            blue_counts,_ = np.histogram(m[blue_sel], mbins)
+            temp.append([red_counts.astype(float), blue_counts.astype(float)])
+        results.append(temp)
+
+    return results
+
+
 def density_vs_fq():
     pass
 
@@ -447,9 +473,6 @@ def density_match(gals, box_size, HW, sm_cuts, debug=False):
     idxs = np.digitize(actual_densities, densities)
     return test_cuts[idxs]
 
-
-def quenched_fraction(gals, red_cut):
-    return gals['ssfr'].apply(lambda x: x < red_cut).mean()
 
 def match_quenched_fraction(gals, new_sm_cuts, HW, sm_cuts, red_cut, debug=False):
     actual_f_q = [quenched_fraction(HW[HW.mstar > cut], red_cut) for cut in sm_cuts]

@@ -129,3 +129,16 @@ def get_density_profile_data(name, log_dir):
     results = load_data(name, log_dir)
     r, m1, m2, m3 = results
     return r, m1, m2, m3
+
+def get_fq_data(name, log_dir):
+    results = load_data(name, log_dir)
+    m, actual, pred = results
+    c_actual, s_actual = actual
+    c_pred, s_pred = pred
+    central_fq = [c_actual[0] / (c_actual[0] + c_actual[1])]
+    central_fq.append(c_pred[0] / (c_pred[0] + c_pred[1]))
+    sat_fq = [s_actual[0] / (s_actual[0] + s_actual[1])]
+    sat_fq.append(s_pred[0] / (s_pred[0] + s_pred[1]))
+    total_fq = [(c_actual[0] + s_actual[0]) /(c_actual[0] + c_actual[1] + s_actual[0] + s_actual[1])]
+    total_fq.append((c_pred[0] + s_pred[0]) /(c_pred[0] + c_pred[1] + s_pred[0] + s_pred[1]))
+    return m, central_fq, sat_fq, total_fq

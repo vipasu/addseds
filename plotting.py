@@ -204,3 +204,24 @@ def annotate_density(grid, label='Text'):
     desc_labels = [''.join([name, ' Centrals']) for name in ['All', 'Quenched', 'SF']]
     for i, label in enumerate(desc_labels):
         grid[3 * i].text(.109, 4, label, fontsize=30)
+
+def plot_quenched_fraction(name, log_dir):
+    masses, central_fq, satellite_fq, total_fq = util.get_fq_data(name, log_dir)
+    dats = [central_fq, satellite_fq, total_fq]
+    fig = plt.figure(figsize=(10,10))
+    ax = plt.gca()
+    ax.set_xscale('log')
+    ax.set_xlabel('$M_{\mathrm{vir}} / M_{\odot}$')
+    ax.set_ylabel('$\mathrm{Quenched}$' + ' $\mathrm{Fraction}$' )
+    ax.set_ylim(0, 1.05)
+    ax.set_xlim(5e11,1e15)
+    colors = [sns.xkcd_rgb['magenta'], sns.xkcd_rgb['green'], sns.xkcd_rgb['black']]
+    labels = ['Centrals', 'Satellites', 'Combined']
+
+    for fq, color, label in zip(dats, colors, labels):
+        plt.plot(masses, fq[0], label=label, color=color)
+        plt.plot(masses, fq[1], '--', color=color, alpha=0.6)
+    ax.legend(loc='best')
+
+    return style_plots(ax)
+
