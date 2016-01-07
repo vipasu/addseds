@@ -111,6 +111,16 @@ def get_wprp_data(name, log_dir):
     return r, a_xis, a_vars, p_xis, p_vars
 
 
+def get_rwp_data(name, log_dir):
+    results = load_data(name, log_dir)
+    r, xra, xba, xrp, xbp, vr, vb = results
+    a_red = [xra, vr]
+    a_blue = [xba, vb]
+    p_red = [xrp, []]
+    p_blue = [xbp, []]
+    return r, a_red, a_blue, p_red, p_blue
+
+
 def get_wprp_bin_data(name, log_dir):
     results = load_data(name, log_dir)
     r, ssfr, pred = results

@@ -133,10 +133,13 @@ def projected_correlation(points, rbins, zmax, box_size, jackknife_nside=0):
                 / pairs_rand \
                 / _jackknife_2d_random(rbins, box_size, jackknife_nside)\
                 - 1.0) * zmax*2.0
+        # wp_jack for a and b
+        # take the difference and compute mean and covariance
+        # return wp_jack as well and make sure to multiply by the n_jack factor outside of the function
         wp_full = (pairs_sum.astype(float)/pairs_rand - 1.0) * zmax*2.0
         wp = wp_full*n_jack - wp_jack.mean(axis=0)*(n_jack-1)
         wp_cov = np.cov(wp_jack, rowvar=0, bias=1)*(n_jack-1)
-        return wp, wp_cov
+        return wp, wp_cov, wp_jack
 
 
 def correlation3d(points, rbins, box_size):

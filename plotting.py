@@ -62,36 +62,44 @@ def style_plots(ax=None):
     return ax
 
 
-
-
-## TODO: Come up with data format for HOD
-## TODO: Come up with data format for number density
-## TODO: Come up with data format for wprp - done
-
-
-def plot_rwp(r, xi, var, ax, actual, fmt, color, fill):
-    if fill:
-        alphas = [0.5, 1] if actual else [0.2, 0.6]
-        ax.fill_between(r, r * (xi - var), r * (xi + var), color=color, alpha=alphas[0])
-        ax.plot(r, r * xi, fmt, color=color, alpha=alphas[1])
+def plot_wprp(r, xi, var, ax, color):
+    if len(var) > 0:
+        ax.loglog(r, xi, '-', color=color)
+        ax.fill_between(r, (xi - var), (xi + var), color=color, alpha=0.5)
     else:
-        alpha = 1 if actual else 0.6
-        ax.errorbar(r, r * xi, r * var, fmt=fmt, color=color, alpha=alpha)
+        ax.loglog(r, xi, '--', color=color, alpha=0.6)
     return style_plots(ax)
 
 
-def plot_rwp_split(name, log_dir, ax=None, fill=False):
+def plot_rwp(r, xi, var, ax, color):
+    if len(var) > 0:
+        ax.plot(r, r * xi, '-', color=color)
+        ax.fill_between(r, r * (xi - var), r * (xi + var), color=color, alpha=0.5)
+    else:
+        ax.plot(r, r * xi, '--', color=color, alpha=0.6)
+    return style_plots(ax)
+
+
+def plot_rwp_split(name, log_dir, ax=None, r_scaled=True):
     ### Load the data
-    r, a_xis, a_vars, p_xis, p_vars = util.get_wprp_data(name, log_dir)
+    #r, a_xis, a_vars, p_xis, p_vars = util.get_wprp_data(name, log_dir)
+    r, a_red, a_blue, p_red, p_blue = util.get_rwp_data(name, log_dir)
     if ax is None:
         fig = plt.figure(figsize=(12, 12))
         ax = plt.gca()
     ax.set_xscale('log')
-    plot_rwp(r, a_xis[0], a_vars[0], ax, True, '-o', red_col, fill)
-    plot_rwp(r, a_xis[1], a_vars[1], ax, True, '-o', blue_col, fill)
-    plot_rwp(r, p_xis[0], p_vars[0], ax, False, '--o', red_col, fill)
-    plot_rwp(r, p_xis[1], p_vars[1], ax, False, '--o', blue_col, fill)
-    ax.set_ylabel('$r$ $w_p(r_p)$ $[Mpc$ $h^{-1}]$')
+    if r_scaled:
+        plot_rwp(r, a_red[0], a_red[1], ax, red_col)
+        plot_rwp(r, a_blue[0], a_blue[1], ax, blue_col)
+        plot_rwp(r, p_red[0], p_red[1], ax, red_col)
+        plot_rwp(r, p_blue[0], p_blue[1], ax, blue_col)
+        ax.set_ylabel('$r$ $w_p(r_p)$ $[Mpc$ $h^{-1}]$')
+    else:
+        plot_wprp(r, a_red[0], a_red[1], ax, red_col)
+        plot_wprp(r, a_blue[0], a_blue[1], ax, blue_col)
+        plot_wprp(r, p_red[0], p_red[1], ax, red_col)
+        plot_wprp(r, p_blue[0], p_blue[1], ax, blue_col)
+        ax.set_ylabel('$w_p(r_p)$')
     ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
     ax.set_xlim(9e-2, 30)
     ax.set_ylim(0, 590)
@@ -105,10 +113,10 @@ def plot_rwp_bins(name, log_dir, ax=None, fill=False):
     colors = sns.blend_palette([red_col, blue_col], len(actual))
     for col, dat in zip(colors, actual):
         xi, var = dat
-        plot_rwp(r, xi, var, ax, True, '-o', col, fill)
+        plot_rwp(r, xi, var, ax, True, '-', col, fill)
     for col, dat in zip(colors, pred):
         xi, var = dat
-        plot_rwp(r, xi, var, ax, False, '--o', col, fill)
+        plot_rwp(r, xi, var, ax, False, '--', col, fill)
     ax.set_ylabel('$r$ $w_p(r_p)$ $[Mpc$ $h^{-1}]$')
     ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
     ax.set_xscale('log')

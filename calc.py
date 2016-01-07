@@ -179,23 +179,32 @@ def calculate_xi(cat, box_size, projected=True, rpmin=0.1, rpmax=20, Nrp=25):
     for i, coord in enumerate(coords):
         pos[:,i] = cat[coord]/h
     # why nside=3?
-    xi, cov = projected_correlation(pos, rbins, zmax, box_size/h, jackknife_nside=3)
-    return xi, cov
+    xi, cov, jack = projected_correlation(pos, rbins, zmax, box_size/h, jackknife_nside=3)
+    return xi, cov, jack
 
 
 def wprp_split(gals, red_split, box_size, cols=['ssfr','pred'],
                   rpmin=0.1, rpmax=20.0, Nrp=25): # for 2 splits
+    # want the new format to be [ r, xra, xba, xrp, xbp, vr, vb]
     r, rbins = make_r_scale(rpmin, rpmax, Nrp)
+    n_jack = 3      # hard coded value
     results = []
     results.append(r)
+    r_jack = []
+    b_jack = []
     for col in cols:
         red = gals[gals[col] < red_split]
         blue = gals[gals[col] > red_split]
-        rx, rc = calculate_xi(red, box_size, True, rpmin, rpmax, Nrp)
-        bx, bc = calculate_xi(blue, box_size, True, rpmin, rpmax, Nrp)
-        red = [rx, np.sqrt(np.diag(rc))]
-        blue = [bx, np.sqrt(np.diag(bc))]
-        results.append([red, blue])
+        rx, rc, rj = calculate_xi(red, box_size, True, rpmin, rpmax, Nrp)
+        bx, bc, bj = calculate_xi(blue, box_size, True, rpmin, rpmax, Nrp)
+        results.append(rx)
+        results.append(bx)
+        r_jack.append(rj)
+        b_jack.append(bj)
+    r_var = np.sqrt(np.diag(np.cov(r_jack[0] - r_jack[1], rowvar=0, bias=1) * (n_jack -1)))
+    b_var = np.sqrt(np.diag(np.cov(b_jack[0] - b_jack[1], rowvar=0, bias=1) * (n_jack -1)))
+    results.append(r_var)
+    results.append(b_var)
     return results
 
 
@@ -205,6 +214,7 @@ def wprp_bins(gals, num_splits, box_size, rpmin=0.1, rpmax=20.0, Nrp=25):
     calculated for both predicted and actual ssfr values and passed to a helper
     function for plotting.
     """
+    n_jack = 3      # hard coded value
     percentiles = [np.round(100. * i/(num_splits + 1)) for i in xrange(0, num_splits + 2)]
     bins = np.percentile(gals['ssfr'].values, percentiles)
 
@@ -218,7 +228,7 @@ def wprp_bins(gals, num_splits, box_size, rpmin=0.1, rpmax=20.0, Nrp=25):
     for dfs in [actual_dfs, pred_dfs]:
         temp = []
         for df in dfs:
-            xi, cov = calculate_xi(df, box_size, True, rpmin, rpmax, Nrp)
+            xi, cov, jack = calculate_xi(df, box_size, True, rpmin, rpmax, Nrp)
             temp.append([xi, np.sqrt(np.diag(cov))])
         results.append(temp)
 
@@ -286,26 +296,26 @@ def calculate_r_hill(galaxies, hosts, box_size, projected=False):
     return np.array(r_hills), np.array(halo_dists), np.array(halo_masses)
 
 
-def quenched_fraction(catalog, nbins=14):
-    masses, ssfr, pred = catalog.mvir.values, catalog.ssfr.values, catalog.pred.values
-    bins = np.logspace(np.log10(np.min(masses)), np.log10(np.max(masses)), nbins)
-
-    # TODO: needs error bars
-    red_cut = -11.0
-    actual_red, = np.where(ssfr < red_cut)
-    pred_red, = np.where(pred < red_cut)
-    actual_blue, = np.where(ssfr > red_cut)
-    pred_blue, = np.where(pred > red_cut)
-
-    actual_red_counts, _ = np.histogram(masses[actual_red], bins)
-    actual_blue_counts, _ = np.histogram(masses[actual_blue], bins)
-    pred_red_counts, _ = np.histogram(masses[pred_red], bins)
-    pred_blue_counts, _ = np.histogram(masses[pred_blue], bins)
-
-    f_q_actual = 1.0 * actual_red_counts / (actual_red_counts + actual_blue_counts)
-    f_q_predicted = 1.0 * pred_red_counts / (pred_red_counts + pred_blue_counts)
-
-    return f_q_actual, f_q_predicted
+#def quenched_fraction(catalog, nbins=14):
+#    masses, ssfr, pred = catalog.mvir.values, catalog.ssfr.values, catalog.pred.values
+#    bins = np.logspace(np.log10(np.min(masses)), np.log10(np.max(masses)), nbins)
+#
+#    # TODO: needs error bars
+#    red_cut = -11.0
+#    actual_red, = np.where(ssfr < red_cut)
+#    pred_red, = np.where(pred < red_cut)
+#    actual_blue, = np.where(ssfr > red_cut)
+#    pred_blue, = np.where(pred > red_cut)
+#
+#    actual_red_counts, _ = np.histogram(masses[actual_red], bins)
+#    actual_blue_counts, _ = np.histogram(masses[actual_blue], bins)
+#    pred_red_counts, _ = np.histogram(masses[pred_red], bins)
+#    pred_blue_counts, _ = np.histogram(masses[pred_blue], bins)
+#
+#    f_q_actual = 1.0 * actual_red_counts / (actual_red_counts + actual_blue_counts)
+#    f_q_predicted = 1.0 * pred_red_counts / (pred_red_counts + pred_blue_counts)
+#
+#    return f_q_actual, f_q_predicted
 
 
 def color_counts_for_HOD(id_to_bin, objects, nbins, red_cut=-11.0, id='upid', col='ssfr'):
@@ -471,7 +481,7 @@ def density_vs_fq(gals, cutoffs, red_cut=-11, nbins=10):
 
 
 def density_match(gals, box_size, HW, sm_cuts, debug=False):
-    sample_size = 1./box_size # I think this is how I came up with the number
+    # sample_size = 1./box_size # I think this is how I came up with the number
     densities = []
     test_cuts = np.arange(6,12,.01)
     for cut in test_cuts:
@@ -479,7 +489,6 @@ def density_match(gals, box_size, HW, sm_cuts, debug=False):
         densities.append(len(gals[gals.mstar > cut]) / box_size**3)
 
     actual_densities = [len(HW[HW.mstar > cut])/250.0**3 for cut in sm_cuts]
-
 
     if debug:
         print 'HW densities are: ',actual_densities
@@ -493,7 +502,9 @@ def density_match(gals, box_size, HW, sm_cuts, debug=False):
 
 
 def match_quenched_fraction(gals, new_sm_cuts, HW, sm_cuts, red_cut, debug=False):
-    actual_f_q = [quenched_fraction(HW[HW.mstar > cut], red_cut) for cut in sm_cuts]
+    def fq_helper(gals, cut):
+        return 1.0 * sum(gals.ssfr < cut) / len(gals)
+    actual_f_q = [fq_helper(HW[HW.mstar > cut], red_cut) for cut in sm_cuts]
     print actual_f_q
     new_red_cuts = []
     test_red_cuts = np.arange(-12.5,0,.01)
@@ -503,7 +514,7 @@ def match_quenched_fraction(gals, new_sm_cuts, HW, sm_cuts, red_cut, debug=False
     for i, (new_sm_cut, old_sm_cut) in enumerate(zip(new_sm_cuts, sm_cuts)):
         quenched_fractions = []
         for cut in test_red_cuts:
-            quenched_fractions.append(quenched_fraction(gals[gals.mstar > new_sm_cut], cut))
+            quenched_fractions.append(fq_helper(gals[gals.mstar > new_sm_cut], cut))
         if debug:
             plt.plot(test_red_cuts, quenched_fractions)
         idx = np.digitize([actual_f_q[i]], quenched_fractions)[0] # array and dearray
@@ -521,7 +532,6 @@ def abundance_match(gals, box_size, debug=False):
     of the stellar mass cuts.
     '''
     # TODO: Make sure that all the catalogs are using units of log mstar
-    # TODO: figure out what sample_size is referring to
 
     # Hard coded values to match against
     d_hw = util.fits_to_pandas(fitsio.read('data/HW/Becker_CAM_mock.fits', lower=True))
@@ -534,6 +544,7 @@ def abundance_match(gals, box_size, debug=False):
 
     if debug:
         plt.figure()
+        print new_sm_cuts
         for cut in new_sm_cuts:
             sns.kdeplot(gals[gals.mstar > cut].ssfr)
 
@@ -549,8 +560,8 @@ def calculate_projected_z(df):
     return df
 
 
-def ssfr_from_sfr(sfr):
-    if sfr == 0.0:
+def ssfr_from_sfr(x):
+    if x.sfr == 0.0:
         return -12
     else:
-        return np.log10(sfr)
+        return np.log10(x.sfr/(10**x.mstar))
