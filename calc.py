@@ -331,11 +331,12 @@ def color_counts_for_HOD(id_to_bin, objects, nbins, red_cut=-11.0, id='upid', co
     return blue_counts, red_counts
 
 
-def HOD(d0, test_gals, msmin=9.8, msmax=None):
+def HOD(d0, test_gals, msmin=9.8, msmax=None, log_space=None):
     mvir = d0['mvir'].values
     red_cut = -11.0
     # create equal spacing on log scale
-    log_space = np.arange(np.log10(np.min(mvir)), np.log10(np.max(mvir)),.2)
+    if log_space is None:
+        log_space = np.arange(np.log10(np.min(mvir)), np.log10(np.max(mvir)),.2)
 
     edges = 10**log_space
     centers = 10 ** ((log_space[1:] + log_space[:-1])/2)
@@ -367,10 +368,63 @@ def HOD(d0, test_gals, msmin=9.8, msmax=None):
     # TODO: verify that I should be comparing the real color of the full thing to 8/7 times the predicted ones
     results = []
     results.append(centers)
-    results.append(num_halos)
-    results.append([[num_actual_red_c, num_actual_blue_c], [num_actual_red_s, num_actual_blue_s]])
-    results.append([[num_pred_red_c, num_pred_blue_c], [num_pred_red_s, num_pred_blue_s]])
+    results.append([[num_actual_red_c/num_halos, num_actual_blue_c/num_halos], [num_actual_red_s/num_halos, num_actual_blue_s/num_halos]])
+    results.append([[num_pred_red_c/num_halos, num_pred_blue_c/num_halos], [num_pred_red_s/num_halos, num_pred_blue_s/num_halos]])
     return results
+
+
+def HOD_wrapper(df, test_gals, box_size):
+    full_octants = util.jackknife_octant_samples(df, box_size)
+    test_octants = util.jackknife_octant_samples(test_gals, box_size)
+    log_space = np.arange(np.log10(np.min(df.mvir)), np.log10(np.max(df.mvir)),.2)
+    centers = 10 ** ((log_space[1:] + log_space[:-1])/2)
+    oct_hods = []
+    for full, test in zip(full_octants, test_octants):
+        oct_hods.append(HOD(full, test, log_space=log_space))
+    red_c_a = np.array([result[1][0][0] for result in oct_hods])
+    blue_c_a = np.array([result[1][0][1] for result in oct_hods])
+    red_s_a = np.array([result[1][1][0] for result in oct_hods])
+    blue_s_a = np.array([result[1][1][1] for result in oct_hods])
+    red_c_p = np.array([result[2][0][0] for result in oct_hods])
+    blue_c_p = np.array([result[2][0][1] for result in oct_hods])
+    red_s_p = np.array([result[2][1][0] for result in oct_hods])
+    blue_s_p = np.array([result[2][1][1] for result in oct_hods])
+    # two options
+    # option 1: take the variance to be the mean std of true-pred
+    # option 2: take jackknife variance independently
+    # should these be taken over multiple runs of the color assignment?
+
+
+    # results structure [centers, [total], [sf/q] , [c], [s]]
+    n_jack = len(oct_hods)
+    results = [centers]
+    totals_a = [rc + bc + rs + bs for rc,bc,rs,bs in zip(red_c_a, blue_c_a, red_s_a, blue_s_a)]
+    totals_p = [rc + bc + rs + bs for rc,bc,rs,bs in zip(red_c_p, blue_c_p, red_s_p, blue_s_p)]
+    results.append([np.mean(totals_a, axis=0), np.mean(totals_p, axis=0),
+        np.sqrt(np.diag(np.cov(np.array(totals_a)-np.array(totals_p), rowvar=0, bias=1)) * (n_jack - 1))])
+
+    red_a = [rc + rs for rc, rs in zip(red_c_a, red_s_a)]
+    blue_a = [bc + bs for bc, bs in zip(blue_c_a, blue_s_a)]
+    red_p = [rc + rs for rc, rs in zip(red_c_p, red_s_p)]
+    blue_p = [bc + bs for bc, bs in zip(blue_c_p, blue_s_p)]
+
+    results.append([np.mean(red_a, axis=0), np.mean(blue_a, axis=0),
+        np.mean(red_p, axis=0), np.mean(blue_p, axis=0),
+        np.sqrt(np.diag(np.cov(np.array(red_a) - np.array(red_p), rowvar=0, bias=1)) * (n_jack -1)),
+        np.sqrt(np.diag(np.cov(np.array(blue_a) - np.array(blue_p), rowvar=0, bias=1)) * (n_jack -1))])
+
+    results.append([np.mean(red_c_a, axis=0), np.mean(blue_c_a, axis=0),
+        np.mean(red_c_p, axis=0), np.mean(blue_c_p, axis=0),
+        np.sqrt(np.diag(np.cov(np.array(red_c_a) - np.array(red_c_p), rowvar=0, bias=1)) * (n_jack -1)),
+        np.sqrt(np.diag(np.cov(np.array(blue_c_a) - np.array(blue_c_p), rowvar=0, bias=1)) * (n_jack -1))])
+
+    results.append([np.mean(red_s_a, axis=0), np.mean(blue_s_a, axis=0),
+        np.mean(red_s_p, axis=0), np.mean(blue_s_p, axis=0),
+        np.sqrt(np.diag(np.cov(np.array(red_s_a) - np.array(red_s_p), rowvar=0, bias=1)) * (n_jack -1)),
+        np.sqrt(np.diag(np.cov(np.array(blue_s_a) - np.array(blue_s_p), rowvar=0, bias=1)) * (n_jack -1))])
+
+    return results
+
 
 
 def density_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):

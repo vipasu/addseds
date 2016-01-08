@@ -3,6 +3,7 @@ import cPickle as pickle
 import numpy as np
 import errno
 import pandas as pd
+from functools import reduce
 
 
 def fits_to_pandas(df):
@@ -80,6 +81,24 @@ def pre_process(features, target, d, seed=5432):
     return Xtrain, Xtest, ytrain, ytest, d_train, d_test, x_scaler, y_scaler
 
 
+def jackknife_octant_samples(gals, box_size):
+    half_box_size = box_size/2
+    def box_split(gals, x=0, y=0, z=0):
+        x_sel = np.where(gals.x > half_box_size) if x else np.where(gals.x < half_box_size)
+        y_sel = np.where(gals.y > half_box_size) if y else np.where(gals.y < half_box_size)
+        z_sel = np.where(gals.z > half_box_size) if z else np.where(gals.z < half_box_size)
+        sel = reduce(np.intersect1d, (x_sel[0], y_sel[0], z_sel[0]))
+        return gals.ix[sel], gals.drop(sel)
+    results = []
+    for x in [0,1]:
+        for y in [0,1]:
+            for z in [0,1]:
+                include, exclude = box_split(gals, x, y, z)
+                exclude_ids = set(exclude.id.values)
+                results.append(include[include.apply(lambda x: x.upid not in exclude_ids, axis=1)])
+    return results
+
+
 def get_logging_dir(cat_name, output_dir='output/'):
     out = output_dir + cat_name + '/data/'
     mkdir_p(out)
@@ -129,10 +148,8 @@ def get_wprp_bin_data(name, log_dir):
 
 def get_HOD_data(name, log_dir):
     results = load_data(name, log_dir)
-    masses, num_halos, actual, pred = results
-    a_c, a_s = actual   # centrals and satellites
-    p_c, p_s = pred
-    return masses, num_halos, a_c, a_s, p_c, p_s
+    masses, f1, f2, f3, f4 = results
+    return masses, f1, f2, f3, f4
 
 
 def get_density_profile_data(name, log_dir):

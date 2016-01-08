@@ -3,6 +3,7 @@ import seaborn as sns
 import util
 from matplotlib import rc
 from mpl_toolkits.axes_grid1 import Grid
+import numpy as np
 
 
 rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
@@ -126,38 +127,63 @@ def plot_rwp_bins(name, log_dir, ax=None, fill=False):
 
 
 def plot_HOD(name, log_dir):
-    masses, num_halos, a_c, a_s, p_c, p_s = util.get_HOD_data(name, log_dir)
+    masses, f1, f2, f3, f4 = util.get_HOD_data(name, log_dir)
     fig = plt.figure(figsize=(11,11))
     grid = Grid(fig, rect=111, nrows_ncols=(2,2), axes_pad=0, label_mode='L')
-    p_scale = 8./7
-    p_c = [counts * p_scale for counts in p_c]
-    p_s = [counts * p_scale for counts in p_s]
+    #p_scale = 8./7
+    #p_c = [counts * p_scale for counts in p_c]
+    #p_s = [counts * p_scale for counts in p_s]
 
     ax1, ax2, ax3, ax4 = grid
+    labels = ['Total', 'SF/Quenched', 'Centrals', 'Satellites']
+    for ax, lab in zip(grid, labels):
+        ax.xaxis.labelpad = 17
+        ax.set_xlabel('$M_{vir}/ M_\odot$')
+        ax.set_ylabel('$N(M)$')
+        ax.set_xlim(5e11, 1.7e15)
+        ax.set_ylim(9e-3, 3e3)
+        #ax.legend(loc=2, fontsize=20)
+        ax.text(1e12, 1e2, lab, fontsize=36)
+        style_plots(ax)
     # TODO: Error bars
-    total_actual = a_c[0] + a_c[1] + a_s[0] + a_s[1]
-    total_pred = p_c[0] + p_c[1] + p_s[0] + p_s[1]
-    ax1.loglog(masses, total_actual/num_halos, color='k', lw=4, label='Actual')
-    ax1.loglog(masses, total_pred/num_halos, '--', color='k', label='Predicted', alpha=0.6)
+    #total_actual = a_c[0] + a_c[1] + a_s[0] + a_s[1]
+    #total_pred = p_c[0] + p_c[1] + p_s[0] + p_s[1]
+    ax1.loglog(masses, f1[0], color='k', label='Actual')
+    ax1.loglog(masses, f1[1], '--', color='k', label='Predicted', alpha=0.6)
+    ax1.fill_between(masses, f1[0] - f1[2], f1[0]+f1[2], color='k', alpha=0.5)
 
-    total_red = a_c[0] + a_s[0]
-    total_blue = a_c[1] + a_s[1]
-    pred_red = p_c[0] + p_s[0]
-    pred_blue = p_c[1] + p_s[1]
-    ax2.loglog(masses, total_red/num_halos, color=red_col, lw=4, label='Actual')
-    ax2.loglog(masses, total_blue/num_halos, color=blue_col, lw=4)
-    ax2.loglog(masses, pred_red/num_halos, '--', color=red_col, label='Predicted', alpha=0.6)
-    ax2.loglog(masses, pred_blue/num_halos, '--', color=blue_col, alpha=0.6)
+    #total_red = a_c[0] + a_s[0]
+    #total_blue = a_c[1] + a_s[1]
+    #pred_red = p_c[0] + p_s[0]
+    #pred_blue = p_c[1] + p_s[1]
+    print f2[1]
+    print f2[5]
+    print f2[1]-f2[5]
+    print f2[1]+f2[5]
+    print f2[5] > 0
+    ax2.set_yscale('log', nonposy='clip')
+    ax2.loglog(masses, f2[0], color=red_col, label='Actual')
+    ax2.loglog(masses, f2[1], color=blue_col)
+    ax2.fill_between(masses, f2[0]-f2[4], f2[0]+f2[4], alpha=0.5, color=red_col)
+    ax2.fill_between(masses, f2[1]-f2[5], f2[1]+f2[5], alpha=0.5, color=blue_col)
+    ax2.loglog(masses, f2[2], '--', color=red_col, label='Predicted', alpha=0.6)
+    ax2.loglog(masses, f2[3], '--', color=blue_col, alpha=0.6)
 
-    ax3.loglog(masses, a_c[0]/num_halos, color=red_col, lw=4, label='Actual')
-    ax3.loglog(masses, a_c[1]/num_halos, color=blue_col, lw=4)
-    ax3.loglog(masses, p_c[0]/num_halos, '--', color=red_col, label='Predicted', alpha=0.6)
-    ax3.loglog(masses, p_c[1]/num_halos, '--', color=blue_col, alpha=0.6)
+    ax3.set_yscale('log', nonposy='clip')
+    ax3.loglog(masses, f3[0], color=red_col, label='Actual')
+    ax3.loglog(masses, f3[1], color=blue_col)
+    ax3.fill_between(masses, f3[0]-f3[4], f3[0]+f3[4], alpha=0.5, color=red_col)
+    ax3.fill_between(masses, f3[1]-f3[5], f3[1]+f3[5], alpha=0.5, color=blue_col)
+    ax3.loglog(masses, f3[2], '--', color=red_col, label='Predicted', alpha=0.6)
+    ax3.loglog(masses, f3[3], '--', color=blue_col, alpha=0.6)
 
-    ax4.loglog(masses, a_s[0]/num_halos, color=red_col, lw=4, label='Actual')
-    ax4.loglog(masses, a_s[1]/num_halos, color=blue_col, lw=4)
-    ax4.loglog(masses, p_s[0]/num_halos, '--', color=red_col, label='Predicted', alpha=0.6)
-    ax4.loglog(masses, p_s[1]/num_halos, '--', color=blue_col, alpha=0.6)
+    ax4.set_yscale('log', nonposy='clip')
+    ax4.loglog(masses, f4[0], color=red_col, label='Actual')
+    ax4.loglog(masses, f4[1], color=blue_col)
+    ax4.fill_between(masses, f4[0]-f4[4], f4[0]+f4[4], alpha=0.5, color=red_col)
+    ax4.fill_between(masses, f4[1]-f4[5], f4[1]+f4[5], alpha=0.5, color=blue_col)
+    ax4.loglog(masses, f4[0], '--', color=red_col, label='Predicted', alpha=0.6)
+    ax4.loglog(masses, f4[1], '--', color=blue_col, alpha=0.6)
 
     labels = ['Total', 'SF/Quenched', 'Centrals', 'Satellites']
     for ax, lab in zip(grid, labels):
