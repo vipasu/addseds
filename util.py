@@ -166,11 +166,6 @@ def get_fq_data(name, log_dir):
 
 def get_fq_vs_d_data(name, log_dir):
     results = load_data(name, log_dir)
-    cutoffs, d, actual, pred = results
-    actual_fq, pred_fq = [], []
-    for pair in actual:
-        actual_fq.append(pair[0]/ (pair[0] + pair[1]))
-    for pair in pred:
-        pred_fq.append(pair[0]/ (pair[0] + pair[1]))
-    return cutoffs, d, actual_fq, pred_fq
+    cutoffs, d, actual, pred, err = results
+    return cutoffs, d, actual, pred, err
 

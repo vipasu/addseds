@@ -237,17 +237,18 @@ def plot_quenched_fraction(name, log_dir, ax=None):
 
 
 def plot_quenched_fraction_vs_density(name, log_dir, ax=None):
-    cutoffs, d, actual_fq, pred_fq = util.get_fq_vs_d_data(name, log_dir)
+    cutoffs, d, actual_fq, pred_fq, errs = util.get_fq_vs_d_data(name, log_dir)
     if ax is None:
         fig = plt.figure(figsize=(10,10))
         ax = plt.gca()
     ax.set_xlabel('$\mathrm{log}$ $\Sigma_5$')
     ax.set_ylabel('$\mathrm{Quenched}$' + ' $\mathrm{Fraction}$')
     ax.set_ylim(-0.15, 1.2)
-    ax.set_xlim(-0.6, 1.3)
+    ax.set_xlim(-1.1, 1.3)
     colors = sns.blend_palette([blue_col, red_col], len(cutoffs) -1)
-    for fq, cut, col in zip(actual_fq, cutoffs[1:], colors):
+    for fq, cut, col, err in zip(actual_fq, cutoffs[1:], colors, errs):
         ax.plot(d, fq, color=col, lw=3, label='$M_* < ' + str(cut) + '$')
+        ax.fill_between(d, fq - err, fq + err, color=col, alpha=0.4)
     for fq, cut, col in zip(pred_fq, cutoffs[1:], colors):
         ax.plot(d, fq, '--', color=col, alpha=0.6)
     ax.legend(loc='best')

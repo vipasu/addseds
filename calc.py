@@ -559,10 +559,11 @@ def quenched_fraction_wrapper(gals, box_size, red_cut=-11.0, nbins=14):
 
 
 
-def density_vs_fq(gals, cutoffs, red_cut=-11, nbins=10):
+def density_vs_fq(gals, cutoffs, red_cut=-11, dbins=None, nbins=10):
     sections = [gals[(gals['mstar'] >= cutoffs[i]) & (gals['mstar'] < cutoffs[i+1])] for i in xrange(len(cutoffs)-1)]
     s5 = np.log10(gals['$\Sigma_{5}$'].values)
-    dbins = np.linspace(min(s5), max(s5), nbins)
+    if dbins is None:
+        dbins = np.linspace(min(s5), max(s5), nbins)
     centers = (dbins[:-1] + dbins[1:])/2 # average because we're already in logspace
     results = [cutoffs, centers]
 
@@ -574,6 +575,27 @@ def density_vs_fq(gals, cutoffs, red_cut=-11, nbins=10):
         results.append(temp)
     return results
 
+
+def density_vs_fq_wrapper(gals, box_size, cutoffs, red_cut=-11.0, nbins=10):
+    octants = util.jackknife_octant_samples(gals, box_size)
+    s5 = np.log10(gals['$\Sigma_{5}$'].values)
+    dbins = np.linspace(min(s5), max(s5), nbins)
+    centers = (dbins[:-1] + dbins[1:])/2
+    fq_s = []
+    for octant in octants:
+        fq_s.append(density_vs_fq(octant, cutoffs, red_cut=red_cut, dbins=dbins, nbins=nbins))
+
+    n_jack = len(octants)
+    actual_fqs, pred_fqs, errs = [], [], []
+    for i in xrange(len(cutoffs)-1):
+        actuals = np.array([(result[2][i][0]) / (result[2][i][0] + result[2][i][1]) for result in fq_s])
+        preds = np.array([(result[3][i][0]) / (result[3][i][0] + result[3][i][1]) for result in fq_s])
+        actual_fqs.append(np.mean(actuals, axis=0))
+        pred_fqs.append(np.mean(preds, axis=0))
+        errs.append(np.sqrt(np.diag(np.cov(actuals - preds, rowvar=0, bias=1)) * (n_jack - 1)))
+
+    results = [cutoffs, centers, actual_fqs, pred_fqs, errs]
+    return results
 
 
 def density_match(gals, box_size, HW, sm_cuts, debug=False):
