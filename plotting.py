@@ -6,9 +6,6 @@ from mpl_toolkits.axes_grid1 import Grid
 import numpy as np
 
 
-rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
-#rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
-rc('text', usetex=True)
 
 ## http://python4mpia.github.io/plotting/advanced.html
 ## Make sure to close figures
@@ -51,6 +48,9 @@ def get_plotting_context():
 def set_plotting_context():
     sns.set(font_scale=3.5, rc={'xtick.labelsize': 25,'ytick.labelsize': 25,'legend.fontsize': 25})
     sns.set_style('ticks')
+    rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
+    #rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+    rc('text', usetex=True)
 
 
 def style_plots(ax=None):
@@ -229,6 +229,7 @@ def plot_quenched_fraction(name, log_dir, ax=None):
 
     for fq, color, label in zip(dats, colors, labels):
         ax.plot(masses, fq[0], label=label, color=color)
+        ax.fill_between(masses, fq[0] - fq[2], fq[0] + fq[2], color=color, alpha=0.3)
         ax.plot(masses, fq[1], '--', color=color, alpha=0.6)
     ax.legend(loc=8)
 

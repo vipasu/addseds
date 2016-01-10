@@ -493,17 +493,17 @@ def counts_for_fq(df, red_cut, col, x_vals, bins):
     return [red_counts.astype(float), blue_counts.astype(float)]
 
 
-def quenched_fraction(gals, red_cut=-11.0, nbins=14):
-    masses = gals.mvir.values
+def quenched_fraction(gals, red_cut=-11.0, mbins=None, nbins=14):
     cents = gals[gals.upid == -1]
     sats = gals[gals.upid != -1]
     cents = cents.reset_index(drop=True)
     sats = sats.reset_index(drop=True)
 
-    mbins = np.logspace(np.log10(np.min(masses)), np.log10(np.max(masses)), nbins)
+    if mbins is None:
+        masses = gals.mvir.values
+        mbins = np.logspace(np.log10(np.min(masses)), np.log10(np.max(masses)), nbins)
     centers = np.sqrt(mbins[:-1] * mbins[1:])
     results = [centers]
-    fq_actual, fq_pred = [], []
 
     for col in ['ssfr', 'pred']:
         temp = []
@@ -512,7 +512,51 @@ def quenched_fraction(gals, red_cut=-11.0, nbins=14):
             temp.append(counts_for_fq(dat, red_cut, col, m, mbins))
         results.append(temp)
 
+    return results # centers, [[a_c_r, a_c_b], a_s], [p_c, p_s]
+
+
+def quenched_fraction_wrapper(gals, box_size, red_cut=-11.0, nbins=14):
+    octants = util.jackknife_octant_samples(gals, box_size)
+    masses = gals.mvir.values
+    mbins = np.logspace(np.log10(np.min(masses)), np.log10(np.max(masses)), nbins)
+    centers = np.sqrt(mbins[:-1] * mbins[1:])
+    fq_s = []
+    for octant in octants:
+        fq_s.append(quenched_fraction(octant, red_cut, mbins))
+    red_c_a = np.array([result[1][0][0] for result in fq_s])
+    blue_c_a = np.array([result[1][0][1] for result in fq_s])
+    red_s_a = np.array([result[1][1][0] for result in fq_s])
+    blue_s_a = np.array([result[1][1][1] for result in fq_s])
+    red_c_p = np.array([result[2][0][0] for result in fq_s])
+    blue_c_p = np.array([result[2][0][1] for result in fq_s])
+    red_s_p = np.array([result[2][1][0] for result in fq_s])
+    blue_s_p = np.array([result[2][1][1] for result in fq_s])
+
+    n_jack = len(octants)
+    results = [centers] # then fq_total fq_cent fq_sat + corresponding errors
+    actual_fqs = red_c_a/(red_c_a + blue_c_a)
+    pred_fqs = red_c_p/(red_c_p + blue_c_p)
+    fq_total_actual = np.mean(actual_fqs,  axis=0)
+    fq_total_pred = np.mean(pred_fqs,  axis=0)
+    fq_total_err = np.sqrt(np.diag(np.cov(actual_fqs - pred_fqs, rowvar=0, bias=1)) * (n_jack - 1))
+    results.append([fq_total_actual, fq_total_pred, fq_total_err])
+
+    actual_fqs = red_s_a/(red_s_a + blue_s_a)
+    pred_fqs = red_s_p/(red_s_p + blue_s_p)
+    fq_total_actual = np.mean(actual_fqs,  axis=0)
+    fq_total_pred = np.mean(pred_fqs,  axis=0)
+    fq_total_err = np.sqrt(np.diag(np.cov(actual_fqs - pred_fqs, rowvar=0, bias=1)) * (n_jack - 1))
+    results.append([fq_total_actual, fq_total_pred, fq_total_err])
+
+    actual_fqs = (red_c_a + red_s_a)/(red_c_a + blue_c_a + red_s_a + blue_s_a)
+    pred_fqs = (red_c_p + red_s_p)/(red_c_p + blue_c_p + red_s_p + blue_s_p)
+    fq_total_actual = np.mean(actual_fqs,  axis=0)
+    fq_total_pred = np.mean(pred_fqs,  axis=0)
+    fq_total_err = np.sqrt(np.diag(np.cov(actual_fqs - pred_fqs, rowvar=0, bias=1)) * (n_jack - 1))
+    results.append([fq_total_actual, fq_total_pred, fq_total_err])
+
     return results
+
 
 
 def density_vs_fq(gals, cutoffs, red_cut=-11, nbins=10):
