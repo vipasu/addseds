@@ -394,7 +394,6 @@ def HOD_wrapper(df, test_gals, box_size):
     # option 2: take jackknife variance independently
     # should these be taken over multiple runs of the color assignment?
 
-
     # results structure [centers, [total], [sf/q] , [c], [s]]
     n_jack = len(oct_hods)
     results = [centers]
@@ -424,7 +423,6 @@ def HOD_wrapper(df, test_gals, box_size):
         np.sqrt(np.diag(np.cov(np.array(blue_s_a) - np.array(blue_s_p), rowvar=0, bias=1)) * (n_jack -1))])
 
     return results
-
 
 
 def density_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):

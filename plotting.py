@@ -145,45 +145,19 @@ def plot_HOD(name, log_dir):
         #ax.legend(loc=2, fontsize=20)
         ax.text(1e12, 1e2, lab, fontsize=36)
         style_plots(ax)
-    # TODO: Error bars
-    #total_actual = a_c[0] + a_c[1] + a_s[0] + a_s[1]
-    #total_pred = p_c[0] + p_c[1] + p_s[0] + p_s[1]
+
     ax1.loglog(masses, f1[0], color='k', label='Actual')
     ax1.loglog(masses, f1[1], '--', color='k', label='Predicted', alpha=0.6)
     ax1.fill_between(masses, f1[0] - f1[2], f1[0]+f1[2], color='k', alpha=0.5)
 
-    #total_red = a_c[0] + a_s[0]
-    #total_blue = a_c[1] + a_s[1]
-    #pred_red = p_c[0] + p_s[0]
-    #pred_blue = p_c[1] + p_s[1]
-    print f2[1]
-    print f2[5]
-    print f2[1]-f2[5]
-    print f2[1]+f2[5]
-    print f2[5] > 0
-    ax2.set_yscale('log', nonposy='clip')
-    ax2.loglog(masses, f2[0], color=red_col, label='Actual')
-    ax2.loglog(masses, f2[1], color=blue_col)
-    ax2.fill_between(masses, f2[0]-f2[4], f2[0]+f2[4], alpha=0.5, color=red_col)
-    ax2.fill_between(masses, f2[1]-f2[5], f2[1]+f2[5], alpha=0.5, color=blue_col)
-    ax2.loglog(masses, f2[2], '--', color=red_col, label='Predicted', alpha=0.6)
-    ax2.loglog(masses, f2[3], '--', color=blue_col, alpha=0.6)
-
-    ax3.set_yscale('log', nonposy='clip')
-    ax3.loglog(masses, f3[0], color=red_col, label='Actual')
-    ax3.loglog(masses, f3[1], color=blue_col)
-    ax3.fill_between(masses, f3[0]-f3[4], f3[0]+f3[4], alpha=0.5, color=red_col)
-    ax3.fill_between(masses, f3[1]-f3[5], f3[1]+f3[5], alpha=0.5, color=blue_col)
-    ax3.loglog(masses, f3[2], '--', color=red_col, label='Predicted', alpha=0.6)
-    ax3.loglog(masses, f3[3], '--', color=blue_col, alpha=0.6)
-
-    ax4.set_yscale('log', nonposy='clip')
-    ax4.loglog(masses, f4[0], color=red_col, label='Actual')
-    ax4.loglog(masses, f4[1], color=blue_col)
-    ax4.fill_between(masses, f4[0]-f4[4], f4[0]+f4[4], alpha=0.5, color=red_col)
-    ax4.fill_between(masses, f4[1]-f4[5], f4[1]+f4[5], alpha=0.5, color=blue_col)
-    ax4.loglog(masses, f4[0], '--', color=red_col, label='Predicted', alpha=0.6)
-    ax4.loglog(masses, f4[1], '--', color=blue_col, alpha=0.6)
+    for ax, dat in zip([ax2,ax3,ax4], [f2,f3,f4]):
+        ax.set_yscale('log', nonposy='clip')
+        ax.loglog(masses, dat[0], color=red_col, label='Actual')
+        ax.loglog(masses, dat[1], color=blue_col)
+        ax.fill_between(masses, dat[0]-dat[4], dat[0]+dat[4], alpha=0.5, color=red_col)
+        ax.fill_between(masses, dat[1]-dat[5], dat[1]+dat[5], alpha=0.5, color=blue_col)
+        ax.loglog(masses, dat[2], '--', color=red_col, label='Predicted', alpha=0.6)
+        ax.loglog(masses, dat[3], '--', color=blue_col, alpha=0.6)
 
     labels = ['Total', 'SF/Quenched', 'Centrals', 'Satellites']
     for ax, lab in zip(grid, labels):
