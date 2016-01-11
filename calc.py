@@ -229,7 +229,7 @@ def wprp_bins(gals, num_splits, box_size, rpmin=0.1, rpmax=20.0, Nrp=25):
         temp = []
         for df in dfs:
             xi, cov, jack = calculate_xi(df, box_size, True, rpmin, rpmax, Nrp)
-            temp.append([xi, np.sqrt(np.diag(cov))])
+            temp.append([xi, np.sqrt(np.diag(cov))]) # TODO: update this
         results.append(temp)
 
     return results  # ssfr, pred
@@ -464,6 +464,7 @@ def density_profile(hosts, gals, box_size, rmin=0.1, rmax=5.0, Nrp=10):
     r, rbins = make_r_scale(rmin, rmax, Nrp)
     results = [r]
     gals = gals[gals.upid != -1]
+    gals = gals.reset_index(drop=True)
 
     mvir = hosts['mvir'].values
     delta = 0.25
@@ -480,6 +481,33 @@ def density_profile(hosts, gals, box_size, rmin=0.1, rmax=5.0, Nrp=10):
         gal_sel = gal_sel.reset_index(drop=True)
         counts = density_profile_counts(gal_sel, host_sel, box_size, r, rbins, rmax)
         results.append(counts)
+
+    return results
+
+
+def density_profile_wrapper(hosts, gals, box_size, rmin=0.1, rmax=5.0, Nrp=10):
+    hosts = hosts.reset_index(drop=True)
+    octants = util.jackknife_octant_samples(gals, box_size)
+    host_octs = util.jackknife_octant_samples(hosts, box_size)
+    r, rbins = make_r_scale(rmin, rmax, Nrp)
+    results = [r]
+
+    profiles = []
+    for i, (octant, host_oct) in enumerate(zip(octants, host_octs)):
+        #print 'octant: ', i
+        profiles.append(density_profile(host_oct, octant, box_size, rmin, rmax, Nrp))
+
+    n_jack = len(octants)
+    #print len(profiles[0][2])
+    for i in xrange(3):
+        num_reds = np.array([result[i+1][0] for result in profiles])
+        num_blues = np.array([result[i+1][1] for result in profiles])
+        num_pred_reds = np.array([result[i+1][2] for result in profiles])
+        num_pred_blues = np.array([result[i+1][3] for result in profiles])
+        results.append([np.mean(num_reds, axis=0), np.mean(num_blues, axis=0),
+            np.mean(num_pred_reds, axis=0), np.mean(num_pred_blues, axis=0),
+            np.sqrt(np.diag(np.cov(num_reds - num_pred_reds, rowvar=0, bias=1)) * (n_jack - 1)),
+            np.sqrt(np.diag(np.cov(num_blues - num_pred_blues, rowvar=0, bias=1)) * (n_jack - 1))])
 
     return results
 

@@ -174,15 +174,17 @@ def plot_HOD(name, log_dir):
 
 
 def plot_density_profile(r, m, ax):
-    num_red, num_blue, num_pred_red, num_pred_blue = m
+    num_red, num_blue, num_pred_red, num_pred_blue, red_err, blue_err = m
     ax.loglog(r, num_red, '--', color=red_col, lw=4, label='input')
+    ax.fill_between(r, num_red - red_err, num_red + red_err, color=red_col, alpha=0.3)
     ax.loglog(r, num_pred_red, '--', color=red_col, label='pred', alpha=0.5)
     ax.loglog(r, num_blue, '--', color=blue_col, lw=4, label='input')
+    ax.fill_between(r, num_blue - blue_err, num_blue + blue_err, color=blue_col, alpha=0.3)
     ax.loglog(r, num_pred_blue, '--', color=blue_col, label='pred', alpha=0.5)
     ax.set_xlim(9e-2, 6)
     ax.set_ylim(5e-4, 2e1)
     ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
-    ax.set_ylabel(r'$n(r)$')
+    ax.set_ylabel(r'$n_{sub}(r)$')
     return style_plots(ax)
 
 
