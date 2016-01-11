@@ -187,7 +187,7 @@ def wprp_split(gals, red_split, box_size, cols=['ssfr','pred'],
                   rpmin=0.1, rpmax=20.0, Nrp=25): # for 2 splits
     # want the new format to be [ r, xra, xba, xrp, xbp, vr, vb]
     r, rbins = make_r_scale(rpmin, rpmax, Nrp)
-    n_jack = 3      # hard coded value
+    n_jack = 9      # hard coded value
     results = []
     results.append(r)
     r_jack = []
@@ -214,7 +214,7 @@ def wprp_bins(gals, num_splits, box_size, rpmin=0.1, rpmax=20.0, Nrp=25):
     calculated for both predicted and actual ssfr values and passed to a helper
     function for plotting.
     """
-    n_jack = 3      # hard coded value
+    n_jack = 9      # hard coded value
     percentiles = [np.round(100. * i/(num_splits + 1)) for i in xrange(0, num_splits + 2)]
     bins = np.percentile(gals['ssfr'].values, percentiles)
 
@@ -225,14 +225,22 @@ def wprp_bins(gals, num_splits, box_size, rpmin=0.1, rpmax=20.0, Nrp=25):
 
     r, rbins = make_r_scale(rpmin, rpmax, Nrp)
     results = [r]
+    jacks = []
     for dfs in [actual_dfs, pred_dfs]:
         temp = []
+        temp_jack = []
         for df in dfs:
             xi, cov, jack = calculate_xi(df, box_size, True, rpmin, rpmax, Nrp)
-            temp.append([xi, np.sqrt(np.diag(cov))]) # TODO: update this
+            temp.append(xi) # TODO: update this
+            temp_jack.append(jack)
+        jacks.append(temp_jack)
         results.append(temp)
+    errs = []
+    for i in xrange(num_splits + 1):
+        errs.append(np.sqrt(np.diag(np.cov(jacks[0][i] - jacks[1][i], rowvar=0, bias=1)) * (n_jack - 1)))
+    results.append(errs)
 
-    return results  # ssfr, pred
+    return results  # r, ssfr, pred, errs
 
 
 def find_min_rhill(rs, idxs, m_sec, larger_halos):

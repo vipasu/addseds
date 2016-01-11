@@ -142,8 +142,8 @@ def get_rwp_data(name, log_dir):
 
 def get_wprp_bin_data(name, log_dir):
     results = load_data(name, log_dir)
-    r, ssfr, pred = results
-    return r, ssfr, pred
+    r, ssfr, pred, errs = results
+    return r, ssfr, pred, errs
 
 
 def get_HOD_data(name, log_dir):

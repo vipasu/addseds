@@ -107,17 +107,15 @@ def plot_rwp_split(name, log_dir, ax=None, r_scaled=True):
     return style_plots(ax)
 
 def plot_rwp_bins(name, log_dir, ax=None, fill=False):
-    r, actual, pred = util.get_wprp_bin_data(name, log_dir)
+    r, actual, pred, errs = util.get_wprp_bin_data(name, log_dir)
     if ax is None:
         fig = plt.figure(figsize=(12, 12))
         ax = plt.gca()
     colors = sns.blend_palette([red_col, blue_col], len(actual))
-    for col, dat in zip(colors, actual):
-        xi, var = dat
-        plot_rwp(r, xi, var, ax, True, '-', col, fill)
-    for col, dat in zip(colors, pred):
-        xi, var = dat
-        plot_rwp(r, xi, var, ax, False, '--', col, fill)
+    for col, xi, var in zip(colors, actual, errs):
+        plot_rwp(r, xi, var, ax, col)
+    for col, xi in zip(colors, pred):
+        plot_rwp(r, xi, [], ax, col)
     ax.set_ylabel('$r$ $w_p(r_p)$ $[Mpc$ $h^{-1}]$')
     ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
     ax.set_xscale('log')
