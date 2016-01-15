@@ -149,13 +149,14 @@ def plot_HOD(name, log_dir):
     ax1.fill_between(masses, f1[0] - f1[2], f1[0]+f1[2], color='k', alpha=0.5)
 
     for ax, dat in zip([ax2,ax3,ax4], [f2,f3,f4]):
-        ax.set_yscale('log', nonposy='clip')
         ax.loglog(masses, dat[0], color=red_col, label='Actual')
         ax.loglog(masses, dat[1], color=blue_col)
-        ax.fill_between(masses, dat[0]-dat[4], dat[0]+dat[4], alpha=0.5, color=red_col)
-        ax.fill_between(masses, dat[1]-dat[5], dat[1]+dat[5], alpha=0.5, color=blue_col)
         ax.loglog(masses, dat[2], '--', color=red_col, label='Predicted', alpha=0.6)
         ax.loglog(masses, dat[3], '--', color=blue_col, alpha=0.6)
+        ax.fill_between(masses, dat[0]-dat[4], dat[0]+dat[4], alpha=0.5, color=red_col)
+        ax.fill_between(masses, dat[1]-dat[5], dat[1]+dat[5], alpha=0.5, color=blue_col)
+        ax.set_yscale('log', nonposy='clip')
+        ax.set_xscale('log', nonposx='clip')
 
     labels = ['Total', 'SF/Quenched', 'Centrals', 'Satellites']
     for ax, lab in zip(grid, labels):
@@ -174,11 +175,11 @@ def plot_HOD(name, log_dir):
 def plot_density_profile(r, m, ax):
     num_red, num_blue, num_pred_red, num_pred_blue, red_err, blue_err = m
     ax.loglog(r, num_red, '--', color=red_col, lw=4, label='input')
-    ax.fill_between(r, num_red - red_err, num_red + red_err, color=red_col, alpha=0.3)
     ax.loglog(r, num_pred_red, '--', color=red_col, label='pred', alpha=0.5)
     ax.loglog(r, num_blue, '--', color=blue_col, lw=4, label='input')
-    ax.fill_between(r, num_blue - blue_err, num_blue + blue_err, color=blue_col, alpha=0.3)
     ax.loglog(r, num_pred_blue, '--', color=blue_col, label='pred', alpha=0.5)
+    ax.fill_between(r, np.maximum(1e-5,num_red - red_err), num_red + red_err, color=red_col, alpha=0.3)
+    ax.fill_between(r, np.maximum(1e-5,num_blue - blue_err), num_blue + blue_err, color=blue_col, alpha=0.3)
     ax.set_xlim(9e-2, 6)
     ax.set_ylim(5e-4, 2e1)
     ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
