@@ -24,7 +24,8 @@ def mkdir_p(path):
 
 
 def split_test_train(d, box_size, fraction=0.125):
-    d_train = d.sample(frac=fraction)
+
+    d_train = d.sample(frac=fraction, random_state=5432)
     d_test = d[~d.index.isin(d_train.index)]
     d_train = d_train.reset_index(drop=True)
     d_test = d_test.reset_index(drop=True)
