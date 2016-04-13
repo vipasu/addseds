@@ -147,7 +147,7 @@ def get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=1,
         assert rfid < half_box_size
         idx, pos = tree.query_radius(center, rfid, periodic=box_size, output='both')
         # if len(idx) <= 1:
-        if len(idx) <= num_neighbors:
+        if len(idx) <= num_neighbors+1:
             rfid *= 2.0
         else:
             break
@@ -441,7 +441,6 @@ def density_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
     with fast3tree(pos) as tree:
         tree.set_boundaries(0.0, box_size)
         #mass_select = hosts[hosts['mbin_idx'] == i]
-        # verify whether this should be r or rbins
         num_red, num_blue = np.zeros(len(r)), np.zeros(len(r))
         num_pred_red, num_pred_blue = np.zeros(len(r)), np.zeros(len(r))
         for j, halo in hosts.iterrows():
@@ -529,11 +528,16 @@ def counts_for_fq(df, red_cut, col, x_vals, bins):
     return [red_counts.astype(float), blue_counts.astype(float)]
 
 
-def quenched_fraction(gals, red_cut=-11.0, mbins=None, nbins=14):
+def quenched_fraction(gals, red_cut, host_mass_dict, mbins=None, nbins=14):
     cents = gals[gals.upid == -1]
     sats = gals[gals.upid != -1]
+    sats.reset_index(drop=True)
     cents = cents.reset_index(drop=True)
+    central_masses = cents.mvir.values
+    host_ids = set(host_mass_dict.keys())
+    sats = sats[sats.upid.isin(host_ids)]
     sats = sats.reset_index(drop=True)
+    sat_host_masses = np.array([host_mass_dict[sat.upid] for _, sat in sats.iterrows()])
 
     if mbins is None:
         masses = gals.mvir.values
@@ -543,22 +547,21 @@ def quenched_fraction(gals, red_cut=-11.0, mbins=None, nbins=14):
 
     for col in ['ssfr', 'pred']:
         temp = []
-        for dat in [cents, sats]:
-            m = dat.mvir.values
-            temp.append(counts_for_fq(dat, red_cut, col, m, mbins))
+        temp.append(counts_for_fq(cents, red_cut, col, central_masses, mbins))
+        temp.append(counts_for_fq(sats, red_cut, col, sat_host_masses, mbins))
         results.append(temp)
 
     return results # centers, [[a_c_r, a_c_b], a_s], [p_c, p_s]
 
 
-def quenched_fraction_wrapper(gals, box_size, red_cut=-11.0, nbins=14):
+def quenched_fraction_wrapper(gals, box_size, mass_dict, red_cut=-11.0, nbins=14):
     octants = util.jackknife_octant_samples(gals, box_size)
     masses = gals.mvir.values
     mbins = np.logspace(np.log10(np.min(masses)), np.log10(np.max(masses)), nbins)
     centers = np.sqrt(mbins[:-1] * mbins[1:])
     fq_s = []
     for octant in octants:
-        fq_s.append(quenched_fraction(octant, red_cut, mbins))
+        fq_s.append(quenched_fraction(octant, red_cut, mass_dict, mbins))
     red_c_a = np.array([result[1][0][0] for result in fq_s])
     blue_c_a = np.array([result[1][0][1] for result in fq_s])
     red_s_a = np.array([result[1][1][0] for result in fq_s])
@@ -637,7 +640,7 @@ def density_vs_fq_wrapper(gals, box_size, cutoffs, red_cut=-11.0, nbins=10):
 def density_match(gals, box_size, HW, sm_cuts, debug=False):
     # sample_size = 1./box_size # I think this is how I came up with the number
     densities = []
-    test_cuts = np.arange(6,12,.01)
+    test_cuts = np.arange(9,11.5,.01)
     for cut in test_cuts:
         #densities.append(len(gals[gals.mstar > cut]) / box_size**3/sample_size)
         densities.append(len(gals[gals.mstar > cut]) / box_size**3)
@@ -661,7 +664,7 @@ def match_quenched_fraction(gals, new_sm_cuts, HW, sm_cuts, red_cut, debug=False
     actual_f_q = [fq_helper(HW[HW.mstar > cut], red_cut) for cut in sm_cuts]
     print actual_f_q
     new_red_cuts = []
-    test_red_cuts = np.arange(-12.5,0,.01)
+    test_red_cuts = np.arange(-11.5,-9.5,.01)
     if debug:
         sns.kdeplot(gals.ssfr)
         plt.figure()
@@ -698,13 +701,14 @@ def abundance_match(gals, box_size, debug=False):
 
     if debug:
         plt.figure()
-        print new_sm_cuts
         for cut in new_sm_cuts:
             sns.kdeplot(gals[gals.mstar > cut].ssfr)
 
     if debug:
         plt.figure()
     red_cuts = match_quenched_fraction(gals, new_sm_cuts, d_hw, sm_cuts, red_cut, debug)
+    print new_sm_cuts
+    print red_cuts
     return new_sm_cuts, red_cuts
 
 
@@ -719,3 +723,10 @@ def ssfr_from_sfr(x):
         return -12
     else:
         return np.log10(x.sfr/(10**x.mstar))
+
+def color_am(ssfr, rhill):
+    r_order = np.argsort(rhill)
+    ssfr_sorted = np.array(sorted(ssfr))
+    pred_colors = np.zeros(len(ssfr))
+    pred_colors[r_order] = ssfr_sorted
+    return pred_colors
