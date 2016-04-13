@@ -189,35 +189,35 @@ def plot_quenched_profile(r,m,ax):
 
 
 
-def plot_density_profile(r, m, ax):
+def plot_radial_profile(r, m, ax):
     num_red, num_blue, num_pred_red, num_pred_blue, red_err, blue_err = m
-    ax.loglog(r, num_red, '--', color=red_col, lw=4, label='input')
+    ax.loglog(r, num_red, color=red_col, label='input')
     ax.loglog(r, num_pred_red, '--', color=red_col, label='pred', alpha=0.5)
-    ax.loglog(r, num_blue, '--', color=blue_col, lw=4, label='input')
+    ax.loglog(r, num_blue, color=blue_col, label='input')
     ax.loglog(r, num_pred_blue, '--', color=blue_col, label='pred', alpha=0.5)
     ax.fill_between(r, np.maximum(1e-5,num_red - red_err), num_red + red_err, color=red_col, alpha=0.3)
     ax.fill_between(r, np.maximum(1e-5,num_blue - blue_err), num_blue + blue_err, color=blue_col, alpha=0.3)
     ax.set_xlim(9e-2, 6)
     ax.set_ylim(5e-4, 2e1)
     ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
-    ax.set_ylabel(r'$n_{sub}(r)$')
+    ax.set_ylabel(r'$n_{sat}(<r)$')
     return style_plots(ax)
 
 
-def plot_density_profile_grid(name, log_dir, frac=False):
-    #fnames = [''.join([name, desc, '.dat']) for desc in ['_all', '_quenched', '_sf']]
-    fnames = [''.join([name, desc, '.dat']) for desc in ['_quenched', '_sf']]
+def plot_radial_profile_grid(name, log_dir, frac=False):
+    fnames = [''.join([name, desc, '.dat']) for desc in ['_all', '_quenched', '_sf']]
+    #fnames = [''.join([name, desc, '.dat']) for desc in ['_quenched', '_sf']]
     nrows = len(fnames)
     ncols = 3
-    fig = plt.figure(figsize=(17,2 * nrows + 1.5))
+    fig = plt.figure(figsize=(17,3.5 * nrows + 1.5))
     grid = Grid(fig, rect=111, nrows_ncols=(nrows,ncols), axes_pad=0, label_mode='L')
     for row, name in enumerate(fnames):
-        r, m1, m2, m3 = util.get_density_profile_data(name, log_dir)
+        r, m1, m2, m3 = util.get_radial_profile_data(name, log_dir)
         for i, m in enumerate([m1, m2, m3]):
             if frac:
                 plot_quenched_profile(r, m, grid[row * 3 + i])
             else:
-                plot_density_profile(r, m, grid[row * 3 + i])
+                plot_radial_profile(r, m, grid[row * 3 + i])
     return grid
 
 
@@ -237,7 +237,7 @@ def annotate_conformity(grid, label='Text'):
         grid[3 * i].text(.109, .95, label, fontsize=30)
 
 
-def annotate_density(grid, label='Text'):
+def annotate_radial_profile(grid, label='Text'):
     grid[len(grid)-1].text(1.3e-1, 5e-3, label, fontsize=40)
     ml = '\mathrm{log} M_{\mathrm{vir}}'
 
@@ -248,7 +248,7 @@ def annotate_density(grid, label='Text'):
     for i, label in enumerate(mass_labels):
         grid[i].text(.15, 27, label, fontsize=25)
 
-    desc_labels = [''.join([name, ' Centrals']) for name in ['Quenched', 'SF']]
+    desc_labels = [''.join([name, ' Centrals']) for name in ['All', 'Quenched', 'Star Forming']]
     for i, label in enumerate(desc_labels):
         grid[3 * i].text(.109, 4, label, fontsize=30)
 

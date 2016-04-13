@@ -433,7 +433,7 @@ def HOD_wrapper(df, test_gals, box_size):
     return results
 
 
-def density_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
+def radial_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
     num_halos = len(hosts)
     results = []
     pos = make_pos(gals)
@@ -441,9 +441,12 @@ def density_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
     with fast3tree(pos) as tree:
         tree.set_boundaries(0.0, box_size)
         #mass_select = hosts[hosts['mbin_idx'] == i]
-        num_red, num_blue = np.zeros(len(r)), np.zeros(len(r))
-        num_pred_red, num_pred_blue = np.zeros(len(r)), np.zeros(len(r))
+        num_reds, num_blues = [],[]
+        num_pred_reds, num_pred_blues = [], []
+        diff_reds, diff_blues = [], []
         for j, halo in hosts.iterrows():
+            num_red, num_blue = np.zeros(len(r)), np.zeros(len(r))
+            num_pred_red, num_pred_blue = np.zeros(len(r)), np.zeros(len(r))
             center = [halo[tag] for tag in pos_tags]
             idxs, pos = tree.query_radius(center, rmax, periodic=box_size, output='both')
             rs = get_3d_distance(center, pos, box_size=box_size)
@@ -461,13 +464,24 @@ def density_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
                     num_pred_red[rbin] += 1
                 else:
                     num_pred_blue[rbin] += 1
-        volumes = [4./3 * np.pi * rad**3 for rad in r] # maybe rbins
-        # Do these need any cumsums? # don't think so
-        for counts in [num_red, num_blue, num_pred_red, num_pred_blue]:
-            results.append( counts.cumsum() / num_halos / volumes)
+            num_reds.append(num_red.cumsum())
+            num_blues.append(num_blue.cumsum())
+            num_pred_reds.append(num_pred_red.cumsum())
+            num_pred_blues.append(num_pred_blue.cumsum())
+            diff_reds.append(num_red.cumsum() - num_pred_red.cumsum())
+            diff_blues.append(num_blue.cumsum() - num_pred_blue.cumsum())
+    all_counts = [num_reds, num_blues, num_pred_reds, num_pred_blues]
+    means = map(lambda x: np.mean(x, axis=0), all_counts)
+    stds = map(lambda x: np.std(x, axis=0), [diff_reds, diff_blues])
+    volumes = [4./3 * np.pi * rad**3 for rad in r] # maybe rbins
+    # Do these need any cumsums? # don't think so
+    for counts in means:
+        results.append(counts / volumes)
+    for errs in stds:
+        results.append(errs / volumes)
     return results
 
-def density_profile(hosts, gals, box_size, rmin=0.1, rmax=5.0, Nrp=10):
+def radial_profile(hosts, gals, box_size, rmin=0.1, rmax=5.0, Nrp=10):
     r, rbins = make_r_scale(rmin, rmax, Nrp)
     results = [r]
     gals = gals[gals.upid != -1]
@@ -486,7 +500,7 @@ def density_profile(hosts, gals, box_size, rmin=0.1, rmax=5.0, Nrp=10):
         gal_sel = gal_sel[gal_sel['include'] == True]
         host_sel = host_sel.reset_index(drop=True)
         gal_sel = gal_sel.reset_index(drop=True)
-        counts = density_profile_counts(gal_sel, host_sel, box_size, r, rbins, rmax)
+        counts = radial_profile_counts(gal_sel, host_sel, box_size, r, rbins, rmax)
         results.append(counts)
 
     return results

@@ -153,7 +153,7 @@ def get_HOD_data(name, log_dir):
     return masses, f1, f2, f3, f4
 
 
-def get_density_profile_data(name, log_dir):
+def get_radial_profile_data(name, log_dir):
     results = load_data(name, log_dir)
     r, m1, m2, m3 = results
     return r, m1, m2, m3
