@@ -94,14 +94,14 @@ def plot_rwp_split(name, log_dir, ax=None, r_scaled=True):
         plot_rwp(r, a_blue[0], a_blue[1], ax, blue_col)
         plot_rwp(r, p_red[0], p_red[1], ax, red_col)
         plot_rwp(r, p_blue[0], p_blue[1], ax, blue_col)
-        ax.set_ylabel('$r$ $w_p(r_p)$ $[Mpc$ $h^{-1}]$')
+        ax.set_ylabel('$r_p$ $w_p(r_p)$ $[Mpc$ $h^{-1}]$')
     else:
         plot_wprp(r, a_red[0], a_red[1], ax, red_col)
         plot_wprp(r, a_blue[0], a_blue[1], ax, blue_col)
         plot_wprp(r, p_red[0], p_red[1], ax, red_col)
         plot_wprp(r, p_blue[0], p_blue[1], ax, blue_col)
         ax.set_ylabel('$w_p(r_p)$')
-    ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
+    ax.set_xlabel('$r_p$ $[Mpc$ $h^{-1}]$')
     ax.set_xlim(9e-2, 30)
     ax.set_ylim(0, 590)
     return style_plots(ax)
@@ -116,8 +116,8 @@ def plot_rwp_bins(name, log_dir, ax=None, fill=False):
         plot_rwp(r, xi, var, ax, col)
     for col, xi in zip(colors, pred):
         plot_rwp(r, xi, [], ax, col)
-    ax.set_ylabel('$r$ $w_p(r_p)$ $[Mpc$ $h^{-1}]$')
-    ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
+    ax.set_ylabel('$r_p$ $w_p(r_p)$ $[Mpc$ $h^{-1}]$', fontsize=27)
+    ax.set_xlabel('$r_p$ $[Mpc$ $h^{-1}]$', fontsize=27)
     ax.set_xscale('log')
     ax.set_xlim(9e-2, 30)
     ax.set_ylim(0, 1390)
@@ -171,6 +171,23 @@ def plot_HOD(name, log_dir):
 
     return grid
 
+def plot_quenched_profile(r,m,ax):
+    num_red, num_blue, num_pred_red, num_pred_blue, red_err, blue_err = m
+    fq_actual = num_red/(num_red+num_blue)
+    fq_pred = num_pred_red/(num_pred_red+num_pred_blue)
+    ax.semilogx(r,fq_actual, color=red_col)
+    ax.semilogx(r,fq_pred, '--', color=red_col, alpha=0.5)
+
+    mean_err = np.sqrt((num_red * red_err)**2 + (num_blue * blue_err)**2)/(num_red + num_blue)
+    ax.fill_between(r, fq_actual - mean_err, fq_actual + mean_err, color=red_col, alpha=0.3)
+    ax.set_xlim(9e-2, 6)
+    ax.set_ylim(0, 1.1)
+    ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
+    ax.set_ylabel('Quenched Fraction', fontsize=32)
+    ax.minorticks_on()
+    return style_plots(ax)
+
+
 
 def plot_density_profile(r, m, ax):
     num_red, num_blue, num_pred_red, num_pred_blue, red_err, blue_err = m
@@ -187,30 +204,51 @@ def plot_density_profile(r, m, ax):
     return style_plots(ax)
 
 
-def plot_density_profile_grid(name, log_dir):
-    fnames = [''.join([name, desc, '.dat']) for desc in ['_all', '_quenched', '_sf']]
-    fig = plt.figure(figsize=(17,10.5))
-    grid = Grid(fig, rect=111, nrows_ncols=(3,3), axes_pad=0, label_mode='L')
+def plot_density_profile_grid(name, log_dir, frac=False):
+    #fnames = [''.join([name, desc, '.dat']) for desc in ['_all', '_quenched', '_sf']]
+    fnames = [''.join([name, desc, '.dat']) for desc in ['_quenched', '_sf']]
+    nrows = len(fnames)
+    ncols = 3
+    fig = plt.figure(figsize=(17,2 * nrows + 1.5))
+    grid = Grid(fig, rect=111, nrows_ncols=(nrows,ncols), axes_pad=0, label_mode='L')
     for row, name in enumerate(fnames):
         r, m1, m2, m3 = util.get_density_profile_data(name, log_dir)
         for i, m in enumerate([m1, m2, m3]):
-            plot_density_profile(r, m, grid[row * 3 + i])
+            if frac:
+                plot_quenched_profile(r, m, grid[row * 3 + i])
+            else:
+                plot_density_profile(r, m, grid[row * 3 + i])
     return grid
 
 
-def annotate_density(grid, label='Text'):
-    grid[8].text(1.3e-1, 5e-3, label, fontsize=40)
+def annotate_conformity(grid, label='Text'):
+    grid[len(grid)-1].text(1.3e-1, 0.2, label, fontsize=40)
     ml = '\mathrm{log} M_{\mathrm{vir}}'
 
     # mass_labels = [''.join(['$',str(m-.25), '<', ml, '<', str(m+.25), '$']) for m in [12, 13, 14]]
-    mass_labels = [''.join(['$|', ml, '-', str(m), '| < 0.25$']) for m in [12,13,14]]
-    ml_pos = [(0.3, 0.2), (0.12, 1.2e-3), (0.12, 1.2e-3)]
+    mass_labels = [ '$11.75 < \log M_{\mathrm{vir}} < 12.25$',
+                    '$12.75 < \log M_{\mathrm{vir}} < 13.25$',
+                    '$13.75 < \log M_{\mathrm{vir}} < 14.25$']
     for i, label in enumerate(mass_labels):
-        #grid[i].text(.11, 8e-4, label, fontsize=20)
-        x,y = ml_pos[i]
-        grid[i].text(x, y, label, fontsize=25)
+        grid[i].text(.15, 1.2, label, fontsize=25)
 
-    desc_labels = [''.join([name, ' Centrals']) for name in ['All', 'Quenched', 'SF']]
+    desc_labels = [''.join([name, ' Centrals']) for name in ['Quenched', 'SF']]
+    for i, label in enumerate(desc_labels):
+        grid[3 * i].text(.109, .95, label, fontsize=30)
+
+
+def annotate_density(grid, label='Text'):
+    grid[len(grid)-1].text(1.3e-1, 5e-3, label, fontsize=40)
+    ml = '\mathrm{log} M_{\mathrm{vir}}'
+
+    # mass_labels = [''.join(['$',str(m-.25), '<', ml, '<', str(m+.25), '$']) for m in [12, 13, 14]]
+    mass_labels = [ '$11.75 < \log M_{\mathrm{vir}} < 12.25$',
+                    '$12.75 < \log M_{\mathrm{vir}} < 13.25$',
+                    '$13.75 < \log M_{\mathrm{vir}} < 14.25$']
+    for i, label in enumerate(mass_labels):
+        grid[i].text(.15, 27, label, fontsize=25)
+
+    desc_labels = [''.join([name, ' Centrals']) for name in ['Quenched', 'SF']]
     for i, label in enumerate(desc_labels):
         grid[3 * i].text(.109, 4, label, fontsize=30)
 
@@ -225,7 +263,7 @@ def plot_quenched_fraction(name, log_dir, ax=None):
     ax.set_ylabel('$\mathrm{Quenched}$' + ' $\mathrm{Fraction}$')
     ax.set_ylim(0, 1.15)
     ax.set_xlim(5e11,1.4e15)
-    colors = [red_col, blue_col, sns.xkcd_rgb['black']]
+    colors = [sns.xkcd_rgb['green'], sns.xkcd_rgb['purple'], sns.xkcd_rgb['black']]
     labels = ['Centrals', 'Satellites', 'Combined']
 
     for fq, color, label in zip(dats, colors, labels):
@@ -246,12 +284,13 @@ def plot_quenched_fraction_vs_density(name, log_dir, ax=None):
     ax.set_ylabel('$\mathrm{Quenched}$' + ' $\mathrm{Fraction}$')
     ax.set_ylim(-0.15, 1.2)
     ax.set_xlim(-1.1, 1.3)
-    colors = sns.blend_palette([blue_col, red_col], len(cutoffs) -1)
-    for fq, cut, col, err in zip(actual_fq, cutoffs[1:], colors, errs):
-        ax.plot(d, fq, color=col, lw=3, label='$M_* < ' + str(cut) + '$')
+    # colors = sns.blend_palette([blue_col, red_col], len(cutoffs) -1)
+    colors = sns.color_palette("Greens", len(errs)+1)[1:]
+    for i, (fq, cut, col, err) in enumerate(zip(actual_fq, cutoffs, colors, errs)):
+        ax.plot(d, fq, color=col, lw=3, label=''.join(['$',str(cut),'<M_*<',str(cutoffs[i+1]), '$']))
         ax.fill_between(d, fq - err, fq + err, color=col, alpha=0.4)
     for fq, cut, col in zip(pred_fq, cutoffs[1:], colors):
         ax.plot(d, fq, '--', color=col, alpha=0.6)
-    ax.legend(loc='best')
+    ax.legend(loc=3, fontsize=20)
     return style_plots(ax)
 
