@@ -33,6 +33,8 @@ Nrp = 25
 rbins = np.logspace(np.log10(rpmin), np.log10(rpmax), Nrp+1)
 r = np.sqrt(rbins[1:]*rbins[:-1])
 
+## TODO: define a catalog class
+
 
 def make_pos(gals, pos_tags=['x', 'y', 'z']):
     pos = np.zeros((len(gals), 3))
@@ -64,6 +66,41 @@ def catalog_selection(d0, m, msmin, msmax=None):
     return df, hosts
 
 
+def get_projected_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
+    width = 0.03
+    pos_tags = ['x', 'y']
+    pos = make_pos(hosts, pos_tags)
+    gal_z = wrap_boundary(gals.zr.values, box_size)
+    host_z = wrap_boundary(hosts.zr.values, box_size)
+    dnbr = np.zeros(len(gals))
+    res = [np.zeros(len(gals)) for attr in attrs]
+    for i in xrange(len(gals)):
+        if i % 10000 == 0: print i, len(gals)
+        #zmax, zmin = gal_z[i] + width, gal_z[i] - width
+        # use get_distance to wrap around the z
+        #sel = np.where((host_z < zmax) & (host_z > zmin))[0]
+        sel = np.where(np.abs(get_distance(gal_z[i], host_z)) < width)[0]
+        # keep in for now to see if I still need to do it for anything 
+        center = [gals[tag].values[i] for tag in pos_tags] + [0]    #fake z dimension
+        #print len(sel)
+        #if len(sel) == 5:
+            #print pos[sel]
+            #print center
+        with fast3tree(pos[sel]) as tree:
+            r, ind = get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=nn, exclude_self=True)
+            dnbr[i] = np.log10(r)
+            for j, attr in enumerate(attrs):
+                res[j][i] = hosts.ix[sel][attr].values[ind]
+                #print sel
+                #print ind
+                #print hosts.ix[sel]
+                #print hosts[attr].ix[sel]
+                #print hosts[attr].ix[sel].values
+                #print hosts[attr].ix[sel].values[ind]
+                #assert False
+    return dnbr, res
+
+
 def get_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0, projected=False):
     """
     hosts - parent set of halos
@@ -89,6 +126,11 @@ def get_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0, projected=False):
                 res[j][i] = hosts[attr].values[ind]
     return dnbr, res
 
+
+def wrap_boundary(pos, box_size):
+    pos[pos < 0] += box_size
+    pos[pos > box_size] -= box_size
+    return pos
 
 def get_distance(center, pos, box_size=-1):
     """
@@ -136,34 +178,52 @@ def get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=1,
     num_neighbors.
     """
     half_box_size = box_size/2.0
+    #half_box_radius = half_box_size * np.sqrt(2)
     tree.set_boundaries(0.0, box_size) ##!! important
     rfid = tree.query_nearest_distance(center)
+    if rfid >= half_box_size:
+        rfid = half_box_size - 2e-6
+        print 'hi1'
+        print rfid
+        print center
+        print tree.data
     if rfid == 0.0:
         rfid = box_size/np.power(tree.data.shape[0], 1.0/3.0)*10.0
         if rfid > half_box_size:
             rfid = half_box_size - 2e-6
     rfid += 1e-6
+    double_count = 0
     while True:
         assert rfid < half_box_size
         idx, pos = tree.query_radius(center, rfid, periodic=box_size, output='both')
         # if len(idx) <= 1:
-        if len(idx) <= num_neighbors+1:
+        #print len(idx)
+        if len(idx) < num_neighbors+1:
+            double_count += 1
+            if double_count > 35:
+                print 'hi2'
+                print rfid
+                print center
+                print tree.data
+                print idx
+                print pos
+                assert False
             rfid *= 2.0
+            if rfid > half_box_size:
+                rfid = half_box_size - 1e-6
+                #print len(idx)
         else:
             break
-    dx = get_distance(center[0], pos[:, 0], box_size=box_size)
-    dy = get_distance(center[1], pos[:, 1], box_size=box_size)
-    dz = get_distance(center[2], pos[:, 2], box_size=box_size)
-    r2 = dx*dx + dy*dy + dz*dz
+    r = get_3d_distance(center, pos, box_size)
     if exclude_self:
-        msk = r2 > 0.0
-        r2 = r2[msk]
+        msk = r > 0.0
+        r = r[msk]
         idx = idx[msk]
     if num_neighbors < 0:
-        q = np.argsort(r2)
+        q = np.argsort(r)
     else:
-        q = np.argsort(r2)[num_neighbors - 1]
-    return np.sqrt(r2[q]), idx[q]
+        q = np.argsort(r)[num_neighbors - 1]
+    return r[q], idx[q]
 
 def calculate_xi(cat, box_size, projected=True, rpmin=0.1, rpmax=20, Nrp=25):
     """
@@ -728,7 +788,7 @@ def abundance_match(gals, box_size, debug=False):
 
 
 def calculate_projected_z(df):
-    df['zr'] = df['z'] + df['vz']/100 # TODO: is this the right unit conversion?
+    df['zr'] = df['z'] + df['vz']/100
     return df
 
 
