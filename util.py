@@ -1,8 +1,10 @@
 import os
+import calc as c
 import cPickle as pickle
 import numpy as np
 import errno
 import pandas as pd
+import fitsio
 from functools import reduce
 
 
@@ -169,4 +171,16 @@ def get_fq_vs_d_data(name, log_dir):
     results = load_data(name, log_dir)
     cutoffs, d, actual, pred, err = results
     return cutoffs, d, actual, pred, err
+
+def load_all_dats():
+    dats = {}
+    dats['HW'] = c.calculate_projected_z(fits_to_pandas(fitsio.read('./data/HW/Becker_CAM_mock.fits', lower=True)))
+    dats['EAGLE'] = pd.read_csv('./data/EAGLE/eagle_galaxies.csv')
+    dats['Illustris'] = pd.read_csv( './data/Illustris/illustris_data.csv')
+    dats['Henriques'] = pd.read_csv('./data/Henriques/MR_z0.00.csv')
+    dats['Becker'] = pd.read_csv('./data/Becker/galaxies.csv')
+    dats['MB-II'] = pd.read_csv('./data/MB-II/galaxies.csv')
+    dats['Lu'] = pd.read_csv('./data/Yu Catalog/galaxies.csv')
+    return dats
+
 
