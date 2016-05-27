@@ -204,7 +204,8 @@ def match_number_density(dats, nd=None, mstar=None):
 
         idx = np.digitize(nd, n_s, right=True)
         ms_cut = m_s[min(idx, len(m_s)-1)]
-        print "Cut in ", name, " at ", ms_cut
+        nd_cut = n_s[min(idx, len(n_s)-1)]
+        print "Cut in ", name, " at ", ms_cut, " with nd: ", nd_cut
 
         d = cat['dat']
         new_cat = cat.copy()

@@ -497,26 +497,19 @@ def radial_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
                     num_pred_red[rbin] += 1
                 else:
                     num_pred_blue[rbin] += 1
-            num_reds.append(num_red.cumsum())
-            num_blues.append(num_blue.cumsum())
-            num_pred_reds.append(num_pred_red.cumsum())
-            num_pred_blues.append(num_pred_blue.cumsum())
-            diff_reds.append(num_red.cumsum() - num_pred_red.cumsum())
-            diff_blues.append(num_blue.cumsum() - num_pred_blue.cumsum())
+            num_reds.append(num_red)
+            num_blues.append(num_blue)
+            num_pred_reds.append(num_pred_red)
+            num_pred_blues.append(num_pred_blue)
+            diff_reds.append(num_red - num_pred_red)
+            diff_blues.append(num_blue - num_pred_blue)
     all_counts = map(np.array, [num_reds, num_blues, num_pred_reds, num_pred_blues])
     means = map(lambda x: np.mean(x, axis=0), all_counts)
-    #print np.mean(num_pred_reds-means[0], axis=0);
-    #print np.std(num_pred_reds-means[0], axis=0);
-    #stds = map(lambda x: np.std(x, axis=0), [num_pred_reds-means[0], num_pred_blues-means[1]]) #[diff_reds, diff_blues])
-    stds = map(lambda x: np.std(x, axis=0), [num_reds-means[0], num_blues-means[1]]) #[diff_reds, diff_blues])
-    #stds = map(lambda x: np.std(x, axis=0), [num_reds, num_blues]) #[diff_reds, diff_blues])
-    #stds = map(lambda x: np.std(x, axis=0), [np.array(diff_reds), np.array(diff_blues)])
-    volumes = [4./3 * np.pi * rad**3 for rad in r] # maybe rbins
-    # Do these need any cumsums? # don't think so
+    stds = map(lambda x: np.std(x, axis=0), [diff_reds, diff_blues])
     for counts in means:
-        results.append(counts / volumes)
+        results.append(counts)
     for errs in stds:
-        results.append(errs / volumes)
+        results.append(errs)
     return results
 
 def radial_profile(hosts, gals, box_size, rmin=0.1, rmax=5.0, Nrp=10):
