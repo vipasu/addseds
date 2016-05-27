@@ -5,6 +5,8 @@ import numpy as np
 import errno
 import pandas as pd
 import fitsio
+from scipy.stats import rankdata
+from collections import defaultdict
 from functools import reduce
 
 
@@ -173,14 +175,41 @@ def get_fq_vs_d_data(name, log_dir):
     return cutoffs, d, actual, pred, err
 
 def load_all_dats():
-    dats = {}
-    dats['HW'] = c.calculate_projected_z(fits_to_pandas(fitsio.read('./data/HW/Becker_CAM_mock.fits', lower=True)))
-    dats['EAGLE'] = pd.read_csv('./data/EAGLE/eagle_galaxies.csv')
-    dats['Illustris'] = pd.read_csv( './data/Illustris/illustris_data.csv')
-    dats['Henriques'] = pd.read_csv('./data/Henriques/MR_z0.00.csv')
-    dats['Becker'] = pd.read_csv('./data/Becker/galaxies.csv')
-    dats['MB-II'] = pd.read_csv('./data/MB-II/galaxies.csv')
-    dats['Lu'] = pd.read_csv('./data/Yu Catalog/galaxies.csv')
+    dats = defaultdict(dict)
+    names = ['HW', 'Becker', 'Lu', 'Henriques', 'EAGLE', 'Illustris', 'MB-II']
+    dirs = ['./data/' + name + '/' for name in names]
+    dirs[2] = './data/Yu Catalog/'
+    box_sizes = [250.0, 250.0, 250.0, 480.0, 100.0, 75.0, 100.0]
+    for name, size, data_dir in zip(names, box_sizes, dirs):
+        dats[name]['dat'] = pd.read_csv(data_dir + 'galaxies.csv')
+        dats[name]['box_size'] = size
+        dats[name]['dir'] = data_dir
     return dats
 
 
+def match_number_density(dats, nd=None, mstar=None):
+    # TODO: some sort of binning to accept mstar and translate to number density
+
+    new_dats = defaultdict(dict)
+    if nd is None:
+        fiducial = dats['HW']
+        m_f = fiducial['dat'].mstar.values
+        n_f= rankdata(-m_f)/fiducial['box_size']**3
+        nd = max(n_f)
+        print nd
+    for name, cat in dats.items():
+        m = cat['dat'].mstar.values
+        n = rankdata(-m)/cat['box_size']**3
+        m_s, n_s = zip(*sorted(zip(m,n)))
+
+        idx = np.digitize(nd, n_s, right=True)
+        ms_cut = m_s[min(idx, len(m_s)-1)]
+        print "Cut in ", name, " at ", ms_cut
+
+        d = cat['dat']
+        new_cat = cat.copy()
+        new_cat['cut'] = ms_cut
+        new_cat['dat'] = d[d.mstar > ms_cut]
+
+        new_dats[name] = new_cat
+    return new_dats
