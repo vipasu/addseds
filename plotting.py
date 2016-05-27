@@ -81,6 +81,27 @@ def plot_rwp(r, xi, var, ax, color):
     return style_plots(ax)
 
 
+def plot_rwp_split_truth(name, log_dir, ax=None, r_scaled=True):
+    r, a_red, a_blue, p_red, p_blue = util.get_rwp_data(name, log_dir)
+    if ax is None:
+        fig = plt.figure(figsize=(12, 12))
+        ax = plt.gca()
+    ax.set_xscale('log')
+    a = 0.5
+    if r_scaled:
+        ax.plot(r, r *a_red[0], color='k', alpha=a)
+        ax.plot(r, r *a_blue[0], color='k', alpha=a)
+        ax.set_ylabel('$r_p$ $w_p(r_p)$ $[Mpc$ $h^{-1}]$')
+    else:
+        ax.plot(r, a_red[0], color='k', alpha=a)
+        ax.plot(r, a_blue[0], color='k', alpha=a)
+        ax.set_ylabel('$w_p(r_p)$')
+    ax.set_xlabel('$r_p$ $[Mpc$ $h^{-1}]$')
+    ax.set_xlim(9e-2, 30)
+    ax.set_ylim(0, 590)
+    return style_plots(ax)
+
+
 def plot_rwp_split(name, log_dir, ax=None, r_scaled=True):
     ### Load the data
     #r, a_xis, a_vars, p_xis, p_vars = util.get_wprp_data(name, log_dir)
@@ -221,6 +242,40 @@ def plot_radial_profile_grid(name, log_dir, frac=False):
     return grid
 
 
+def plot_rwp_bins_grid(endings, log_dir, desc='msbin_4', figsize=None):
+    nrows = len(endings)
+    ncols=3
+    if not figsize:
+        figsize = (16, 4 * nrows + 1)
+    fig = plt.figure(figsize=figsize)
+    grid = Grid(fig, rect=111, nrows_ncols=(nrows,ncols), axes_pad=0, label_mode='L')
+    for i, dat in enumerate(endings):
+        fnames =  ['_'.join(filter(lambda x: x is not '', [str(n), desc, dat])) for n in xrange(3)]
+        for j, name in enumerate(fnames):
+            ax = grid[i*ncols + j]
+            plot_rwp_bins(name, log_dir, ax)
+            ax.minorticks_on()
+            ax.yaxis.label.set_size(40)
+            ax.xaxis.label.set_size(40)
+            if j != ncols/2:
+                ax.set_xlabel('')
+            if i != nrows/2:
+                ax.set_ylabel('')
+    return grid
+
+
+def annotate_rwp_msbins(grid, labels, ncols=3, fs=40, top=1430, lheight=1050):
+    c1, c2, c3 = grid[0], grid[1], grid[2]
+    c1.text(1.7, top, '$9.7 < \log M_*/M_\odot < 9.9$', fontsize=25, horizontalalignment='center')
+    c2.text(1.7, top, '$10.1 < \log M_*/M_\odot < 10.3$', fontsize=25, horizontalalignment='center')
+    c3.text(1.7, top, '$10.5 < \log M_*/M_\odot < 10.7$', fontsize=25, horizontalalignment='center')
+
+    for i,label in enumerate(labels):
+        grid[i*ncols + ncols-1].text(20, lheight, label, fontsize=fs,
+                                     horizontalalignment='right')
+    return grid
+
+
 def annotate_conformity(grid, label='Text'):
     grid[len(grid)-1].text(1.3e-1, 0.2, label, fontsize=40)
     ml = '\mathrm{log} M_{\mathrm{vir}}'
@@ -283,11 +338,11 @@ def plot_quenched_fraction_vs_density(name, log_dir, ax=None):
     ax.set_xlabel('$\mathrm{log}$ $\Sigma_5$')
     ax.set_ylabel('$\mathrm{Quenched}$' + ' $\mathrm{Fraction}$')
     ax.set_ylim(-0.15, 1.2)
-    ax.set_xlim(-1.1, 1.3)
+    ax.set_xlim(0, 2.1)
     # colors = sns.blend_palette([blue_col, red_col], len(cutoffs) -1)
     colors = sns.color_palette("Greens", len(errs)+1)[1:]
     for i, (fq, cut, col, err) in enumerate(zip(actual_fq, cutoffs, colors, errs)):
-        ax.plot(d, fq, color=col, lw=3, label=''.join(['$',str(cut),'<M_*<',str(cutoffs[i+1]), '$']))
+        ax.plot(d, fq, color=col, lw=3, label=''.join(['$',str(cut),'<\log M_*/M_\odot<',str(cutoffs[i+1]), '$']))
         ax.fill_between(d, fq - err, fq + err, color=col, alpha=0.4)
     for fq, cut, col in zip(pred_fq, cutoffs[1:], colors):
         ax.plot(d, fq, '--', color=col, alpha=0.6)
