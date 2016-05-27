@@ -212,16 +212,17 @@ def plot_quenched_profile(r,m,ax):
 
 def plot_radial_profile(r, m, ax):
     num_red, num_blue, num_pred_red, num_pred_blue, red_err, blue_err = m
-    ax.loglog(r, num_red, color=red_col, label='input')
-    ax.loglog(r, num_pred_red, '--', color=red_col, label='pred', alpha=0.5)
-    ax.loglog(r, num_blue, color=blue_col, label='input')
-    ax.loglog(r, num_pred_blue, '--', color=blue_col, label='pred', alpha=0.5)
-    ax.fill_between(r, np.maximum(1e-5,num_red - red_err), num_red + red_err, color=red_col, alpha=0.3)
-    ax.fill_between(r, np.maximum(1e-5,num_blue - blue_err), num_blue + blue_err, color=blue_col, alpha=0.3)
+    ax.semilogx(r, num_red, color=red_col, label='input')
+    ax.semilogx(r, num_pred_red, '--', color=red_col, label='pred', alpha=0.5)
+    ax.semilogx(r, num_blue, color=blue_col, label='input')
+    ax.semilogx(r, num_pred_blue, '--', color=blue_col, label='pred', alpha=0.5)
+    ax.fill_between(r, np.maximum(1e-9,num_red - red_err), num_red + red_err, color=red_col, alpha=0.3)
+    ax.fill_between(r, np.maximum(1e-9,num_blue - blue_err), num_blue + blue_err, color=blue_col, alpha=0.3)
     ax.set_xlim(9e-2, 6)
-    ax.set_ylim(5e-4, 2e1)
+    #ax.set_ylim(5e-5, 2e1)
+    ax.set_ylim(0, 8.5)
     ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
-    ax.set_ylabel(r'$n_{sat}(<r)$')
+    ax.set_ylabel(r'$N_{sat}(r)$')
     return style_plots(ax)
 
 
@@ -297,11 +298,11 @@ def annotate_radial_profile(grid, label='Text'):
     ml = '\mathrm{log} M_{\mathrm{vir}}'
 
     # mass_labels = [''.join(['$',str(m-.25), '<', ml, '<', str(m+.25), '$']) for m in [12, 13, 14]]
-    mass_labels = [ '$11.75 < \log M_{\mathrm{vir}} < 12.25$',
-                    '$12.75 < \log M_{\mathrm{vir}} < 13.25$',
-                    '$13.75 < \log M_{\mathrm{vir}} < 14.25$']
+    mass_labels = [ '$11.75 < \log M_{\mathrm{vir}}/M_\odot < 12.25$',
+                    '$12.75 < \log M_{\mathrm{vir}}/M_\odot < 13.25$',
+                    '$13.75 < \log M_{\mathrm{vir}}/M_\odot < 14.25$']
     for i, label in enumerate(mass_labels):
-        grid[i].text(.15, 27, label, fontsize=25)
+        grid[i].text(.7, 9., label, fontsize=23, horizontalalignment='center')
 
     desc_labels = [''.join([name, ' Centrals']) for name in ['All', 'Quenched', 'Star Forming']]
     for i, label in enumerate(desc_labels):
@@ -339,7 +340,6 @@ def plot_quenched_fraction_vs_density(name, log_dir, ax=None):
     ax.set_ylabel('$\mathrm{Quenched}$' + ' $\mathrm{Fraction}$')
     ax.set_ylim(-0.15, 1.2)
     ax.set_xlim(0, 2.1)
-    # colors = sns.blend_palette([blue_col, red_col], len(cutoffs) -1)
     colors = sns.color_palette("Greens", len(errs)+1)[1:]
     for i, (fq, cut, col, err) in enumerate(zip(actual_fq, cutoffs, colors, errs)):
         ax.plot(d, fq, color=col, lw=3, label=''.join(['$',str(cut),'<\log M_*/M_\odot<',str(cutoffs[i+1]), '$']))

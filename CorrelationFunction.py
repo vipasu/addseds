@@ -104,8 +104,7 @@ def projected_correlation(points, rbins, zmax, box_size, jackknife_nside=0):
                     y -= pp[1]; y *= y
                     x += y; x.sort()
                     pairs += np.ediff1d(np.searchsorted(x, rbins_sq))
-        return (pairs.astype(float)*2.0/pairs_rand - 1.0) * zmax*2.0,
-               (np.sqrt(pairs.astype(float))*2.0/pairs_rand) * zmax*2.0
+        return (pairs.astype(float)*2.0/pairs_rand - 1.0) * zmax*2.0, (np.sqrt(pairs.astype(float))*2.0/pairs_rand) * zmax*2.0
 
     else: #do jackknife
         jack_ids  = np.floor(np.remainder(points[:,0], box_size)\
