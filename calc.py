@@ -67,37 +67,23 @@ def catalog_selection(d0, m, msmin, msmax=None):
 
 
 def get_projected_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
-    width = 0.03
-    pos_tags = ['x', 'y']
+    width_by_2 = 0.005
+    pos_tags = ['x', 'y', 'z']
     pos = make_pos(hosts, pos_tags)
-    gal_z = wrap_boundary(gals.zr.values, box_size)
-    host_z = wrap_boundary(hosts.zr.values, box_size)
+    gal_z = gals.zr.values
+    host_z = hosts.zr.values
     dnbr = np.zeros(len(gals))
     res = [np.zeros(len(gals)) for attr in attrs]
+
     for i in xrange(len(gals)):
         if i % 10000 == 0: print i, len(gals)
-        #zmax, zmin = gal_z[i] + width, gal_z[i] - width
-        # use get_distance to wrap around the z
-        #sel = np.where((host_z < zmax) & (host_z > zmin))[0]
-        sel = np.where(np.abs(get_distance(gal_z[i], host_z)) < width)[0]
-        # keep in for now to see if I still need to do it for anything 
-        center = [gals[tag].values[i] for tag in pos_tags] + [0]    #fake z dimension
-        #print len(sel)
-        #if len(sel) == 5:
-            #print pos[sel]
-            #print center
+        sel = np.where(np.abs(gal_z[i]- host_z) < width_by_2)[0]
+        center = pos[i]
         with fast3tree(pos[sel]) as tree:
             r, ind = get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=nn, exclude_self=True)
             dnbr[i] = np.log10(r)
             for j, attr in enumerate(attrs):
                 res[j][i] = hosts.ix[sel][attr].values[ind]
-                #print sel
-                #print ind
-                #print hosts.ix[sel]
-                #print hosts[attr].ix[sel]
-                #print hosts[attr].ix[sel].values
-                #print hosts[attr].ix[sel].values[ind]
-                #assert False
     return dnbr, res
 
 
@@ -178,15 +164,10 @@ def get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=1,
     num_neighbors.
     """
     half_box_size = box_size/2.0
-    #half_box_radius = half_box_size * np.sqrt(2)
     tree.set_boundaries(0.0, box_size) ##!! important
     rfid = tree.query_nearest_distance(center)
     if rfid >= half_box_size:
         rfid = half_box_size - 2e-6
-        print 'hi1'
-        print rfid
-        print center
-        print tree.data
     if rfid == 0.0:
         rfid = box_size/np.power(tree.data.shape[0], 1.0/3.0)*10.0
         if rfid > half_box_size:
@@ -196,22 +177,12 @@ def get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=1,
     while True:
         assert rfid < half_box_size
         idx, pos = tree.query_radius(center, rfid, periodic=box_size, output='both')
-        # if len(idx) <= 1:
-        #print len(idx)
+        if rfid == half_box_size - 1e-6:
+            break
         if len(idx) < num_neighbors+1:
-            double_count += 1
-            if double_count > 35:
-                print 'hi2'
-                print rfid
-                print center
-                print tree.data
-                print idx
-                print pos
-                assert False
             rfid *= 2.0
             if rfid > half_box_size:
                 rfid = half_box_size - 1e-6
-                #print len(idx)
         else:
             break
     r = get_3d_distance(center, pos, box_size)
@@ -221,6 +192,8 @@ def get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=1,
         idx = idx[msk]
     if num_neighbors < 0:
         q = np.argsort(r)
+    elif len(r) < num_neighbors:
+        return half_box_size, -1
     else:
         q = np.argsort(r)[num_neighbors - 1]
     return r[q], idx[q]
@@ -530,9 +503,14 @@ def radial_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
             num_pred_blues.append(num_pred_blue.cumsum())
             diff_reds.append(num_red.cumsum() - num_pred_red.cumsum())
             diff_blues.append(num_blue.cumsum() - num_pred_blue.cumsum())
-    all_counts = [num_reds, num_blues, num_pred_reds, num_pred_blues]
+    all_counts = map(np.array, [num_reds, num_blues, num_pred_reds, num_pred_blues])
     means = map(lambda x: np.mean(x, axis=0), all_counts)
-    stds = map(lambda x: np.std(x, axis=0), [diff_reds, diff_blues])
+    #print np.mean(num_pred_reds-means[0], axis=0);
+    #print np.std(num_pred_reds-means[0], axis=0);
+    #stds = map(lambda x: np.std(x, axis=0), [num_pred_reds-means[0], num_pred_blues-means[1]]) #[diff_reds, diff_blues])
+    stds = map(lambda x: np.std(x, axis=0), [num_reds-means[0], num_blues-means[1]]) #[diff_reds, diff_blues])
+    #stds = map(lambda x: np.std(x, axis=0), [num_reds, num_blues]) #[diff_reds, diff_blues])
+    #stds = map(lambda x: np.std(x, axis=0), [np.array(diff_reds), np.array(diff_blues)])
     volumes = [4./3 * np.pi * rad**3 for rad in r] # maybe rbins
     # Do these need any cumsums? # don't think so
     for counts in means:
@@ -674,7 +652,8 @@ def quenched_fraction_wrapper(gals, box_size, mass_dict, red_cut=-11.0, nbins=14
 
 def density_vs_fq(gals, cutoffs, red_cut=-11, dbins=None, nbins=10):
     sections = [gals[(gals['mstar'] >= cutoffs[i]) & (gals['mstar'] < cutoffs[i+1])] for i in xrange(len(cutoffs)-1)]
-    s5 = np.log10(gals['$\Sigma_{5}$'].values)
+    s5 = gals['$\Sigma_{5}$'].values
+    print len(s5)
     if dbins is None:
         dbins = np.linspace(min(s5), max(s5), nbins)
     centers = (dbins[:-1] + dbins[1:])/2 # average because we're already in logspace
@@ -683,7 +662,7 @@ def density_vs_fq(gals, cutoffs, red_cut=-11, dbins=None, nbins=10):
     for col in ['ssfr', 'pred']:
         temp = []
         for section in sections:
-            dists = np.log10(section['$\Sigma_{5}$'].values)
+            dists = section['$\Sigma_{5}$'].values
             temp.append(counts_for_fq(section, red_cut, col, dists, dbins))
         results.append(temp)
     return results
@@ -691,7 +670,7 @@ def density_vs_fq(gals, cutoffs, red_cut=-11, dbins=None, nbins=10):
 
 def density_vs_fq_wrapper(gals, box_size, cutoffs, red_cut=-11.0, nbins=10):
     octants = util.jackknife_octant_samples(gals, box_size)
-    s5 = np.log10(gals['$\Sigma_{5}$'].values)
+    s5 = gals['$\Sigma_{5}$'].values
     dbins = np.linspace(min(s5), max(s5), nbins)
     centers = (dbins[:-1] + dbins[1:])/2
     fq_s = []
@@ -786,11 +765,54 @@ def abundance_match(gals, box_size, debug=False):
     return new_sm_cuts, red_cuts
 
 
-
 def calculate_projected_z(df):
-    df['zr'] = df['z'] + df['vz']/100
+    c = 3e5     # km/s
+    table = generate_z_of_r_table(0.3, 0.7)
+    zred = z_of_r(df['z'], table)
+    df['zr'] = zred + df['vz']/c
     return df
 
+
+def generate_z_of_r_table(omegam, omegal, zmax=2.0, npts=1000):
+
+    c = 2.9979e5
+    da = (1.0 - (1.0/(zmax+1)))/npts
+    dtype = np.dtype([('r', np.float), ('z', np.float)])
+    z_of_r_table = np.ndarray(npts, dtype=dtype)
+    Thisa = 1.0
+    z_of_r_table['z'][0] = 1.0/Thisa - 1.
+    z_of_r_table['r'][0] = 0.0
+    for i in range(1, npts):
+        Thisa = 1. - da*float(i)
+        ThisH = 100.*np.sqrt(omegam/Thisa**3 + omegal)
+        z_of_r_table['z'][i] = 1./Thisa - 1
+        z_of_r_table['r'][i] = z_of_r_table['r'][i-1] + 1./(ThisH*Thisa*Thisa)*da*c
+    return z_of_r_table
+
+def z_of_r(r, table):
+
+    npts = len(table)
+    try:
+        nz = len(r)
+    except:
+        nz = 1
+
+    zred = np.zeros(nz)-1
+
+    if nz==1:
+        for i in range(1, npts):
+            if (table['r'][i] > r): break
+        slope = (table['z'][i] - table['z'][i-1])/(table['r'][i]-table['r'][i-1])
+        zred = table['z'][i-1] + slope*(r-table['r'][i-1])
+    else:
+        for i in range(1, npts):
+            ii, = np.where((r >= table['r'][i-1]) & (r < table['r'][i]))
+            count = len(ii)
+            if (count == 0): continue
+            slope = (table['z'][i] - table['z'][i-1])/(table['r'][i]-table['r'][i-1])
+            zred[ii] = table['z'][i-1] + slope*(r[ii]-table['r'][i-1])
+
+    return zred
 
 def ssfr_from_sfr(x):
     if x.sfr == 0.0:
