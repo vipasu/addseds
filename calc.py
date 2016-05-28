@@ -87,17 +87,14 @@ def get_projected_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
     return dnbr, res
 
 
-def get_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0, projected=False):
+def get_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
     """
     hosts - parent set of halos
     gals - galaxy set
     nn - num neighbors
     attrs - list of attributes (i.e. ['mvir','vmax'])
     """
-    if projected:
-        pos_tags = ['x', 'y', 'zr']
-    else:
-        pos_tags = ['x', 'y', 'z']
+    pos_tags = ['x', 'y', 'z']
     pos = make_pos(hosts, pos_tags)
 
     dnbr = np.zeros(len(gals))
