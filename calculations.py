@@ -4,14 +4,9 @@ import sys
 import pandas as pd
 
 def main(cat_name, proxy):
-    print "Loading data..."
-    cats = util.load_data('cut_cats.dat', './data/')
-    print "Done loading data..."
-    assert cat_name in cats.keys()
-    cat = cats[cat_name]
-    print "Discarding extra data..."
-    del cats
+    cat = util.get_catalog(cat_name)
     dat = cat['dat']
+
     if proxy[0] == 's':
         dist_func = c.get_projected_dist_and_attrs
     else:
@@ -20,7 +15,7 @@ def main(cat_name, proxy):
     print "Calculating the distance to the ", nn, "th nearest neighbor"
     dist, _ = dist_func(dat, dat, nn, [], box_size=cat['box_size'])
     fname = cat['dir'] + proxy + '.csv'
-    pd.Series(dist).to_csv(fname)
+    pd.Series(dist).to_csv(fname, index=False)
     print 'wrote to: ', fname
 
 

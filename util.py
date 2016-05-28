@@ -174,18 +174,32 @@ def get_fq_vs_d_data(name, log_dir):
     cutoffs, d, actual, pred, err = results
     return cutoffs, d, actual, pred, err
 
-def load_all_dats():
+def load_all_cats():
     dats = defaultdict(dict)
     names = ['HW', 'Becker', 'Lu', 'Henriques', 'EAGLE', 'Illustris', 'MB-II']
     dirs = ['./data/' + name + '/' for name in names]
-    dirs[2] = './data/Yu Catalog/'
     box_sizes = [250.0, 250.0, 250.0, 480.0, 100.0, 75.0, 100.0]
     for name, size, data_dir in zip(names, box_sizes, dirs):
-        dats[name]['dat'] = pd.read_csv(data_dir + 'galaxies.csv')
+        #dats[name]['dat'] = c.calculate_projected_z(pd.read_csv(data_dir + 'galaxies.csv'))
         dats[name]['box_size'] = size
         dats[name]['dir'] = data_dir
     return dats
 
+def load_dat(cats, name):
+    cats[name]['dat'] = c.calculate_projected_z(pd.read_csv(cats[name]['dir'] + 'galaxies_cut.csv'))
+    return
+
+
+def get_catalog(name):
+    print "Loading cat info..."
+    cats = load_all_cats()
+    print "loading dat..."
+    assert name in cats.keys()
+    load_dat(cats, name)
+    cat = cats[name]
+    print "Discarding extra data..."
+    del cats
+    return cat
 
 def match_number_density(dats, nd=None, mstar=None):
     # TODO: some sort of binning to accept mstar and translate to number density
