@@ -9,12 +9,13 @@ from collections import defaultdict
 def main(cat_name, proxy):
     cat = util.get_catalog(cat_name)
     df = cat['dat']
+    print "num galaxies: ", len(df)
 
     data_dir = cat['dir']
     fname = data_dir + proxy + '.csv'
-    density = pd.read_csv(fname, header=None)
     print 'reading from: ', fname
-    #print density
+    density = pd.read_csv(fname, header=None)
+    print "num entries: ", len(density)
 
     df[proxy] = density.values
     df_train, df_test, m = model.trainRegressor(df, cat['box_size'], ['mstar', proxy])
@@ -25,7 +26,9 @@ def main(cat_name, proxy):
         stat_dict = util.load_data('statistics.pckl', data_dir)
     except:
         stat_dict = defaultdict(dict)
-    stat_dict['pearsonr'][proxy] = r_value
+    if not stat_dict['pearsonr'].has_key(proxy):
+        stat_dict['pearsonr'][proxy] = []
+    stat_dict['pearsonr'][proxy].append(r_value)
     util.dump_data(stat_dict, 'statistics.pckl', data_dir)
 
 
