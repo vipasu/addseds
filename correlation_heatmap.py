@@ -11,7 +11,7 @@ def plot_heatmap(dat, xlabels, ylabels):
     num_x = len(xlabels)
     num_y = len(ylabels)
     plt.figure(figsize=(10, 10))
-    plt.pcolor(dat, cmap='Blues')
+    plt.pcolor(dat, cmap='coolwarm')
     cbar = plt.colorbar()
     cbar.ax.tick_params(labelsize=15)
     plt.xticks(np.arange(num_x)+.5, xlabels, rotation='vertical', fontsize=25)
@@ -25,15 +25,19 @@ def main():
     all_r_values = []
     names = cats.keys()
     names = ['HW', 'Becker', 'Lu', 'Henriques', 'Illustris', 'EAGLE', 'MB-II'][::-1]
-    proxies = ['s1','s2','s5','s10','d1','d2','d5','d10']
-    proxies_formatted = [ '$\Sigma_1$', '$\Sigma_2$', '$\Sigma_5$', '$\Sigma_{10}$', '$D_1$', '$D_2$', '$D_5$', '$D_{10}$']
+    proxies = ['s1','s2','s5','s10','d1','d2','d5','d10', 'rhill', 'rhillmass']
+    proxies_formatted = [ '$\Sigma_1$', '$\Sigma_2$', '$\Sigma_5$', '$\Sigma_{10}$', '$D_1$', '$D_2$', '$D_5$', '$D_{10}$', 'R$_\mathrm{hill}$', 'R$_\mathrm{hill-mass}$' ]
     for name in names:
         cat = cats[name]
         stat_dict = util.load_data('statistics.pckl', cat['dir'])
         r_values = []
         for p in proxies:
-            print 'std of pearsonr for ', p, '=', np.std(stat_dict['pearsonr'][p])
-            r_values.append(np.mean(stat_dict['pearsonr'][p]))
+            try:
+                print 'std of pearsonr for ', p, '=', np.std(stat_dict['pearsonr'][p])
+                r_values.append(np.mean(stat_dict['pearsonr'][p]))
+            except:
+                print 'no statistics found for', p
+                r_values.append(0)
         all_r_values.append(r_values)
     df = pd.DataFrame(columns=proxies_formatted, index=names)
     for name, r_values in zip(names, all_r_values):
