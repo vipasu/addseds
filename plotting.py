@@ -220,7 +220,7 @@ def plot_radial_profile(r, m, ax):
     ax.fill_between(r, np.maximum(1e-9,num_blue - blue_err), num_blue + blue_err, color=blue_col, alpha=0.3)
     ax.set_xlim(9e-2, 6)
     #ax.set_ylim(5e-5, 2e1)
-    ax.set_ylim(0, 8.5)
+    ax.set_ylim(0, 8.7)
     ax.set_xlabel('$r$ $[Mpc$ $h^{-1}]$')
     ax.set_ylabel(r'$N_{sat}(r)$')
     return style_plots(ax)
@@ -294,7 +294,7 @@ def annotate_conformity(grid, label='Text'):
 
 
 def annotate_radial_profile(grid, label='Text'):
-    grid[len(grid)-1].text(1.3e-1, 5e-3, label, fontsize=40)
+    grid[len(grid)-1].text(1.3e-1, .5, label, fontsize=40)
     ml = '\mathrm{log} M_{\mathrm{vir}}'
 
     # mass_labels = [''.join(['$',str(m-.25), '<', ml, '<', str(m+.25), '$']) for m in [12, 13, 14]]
@@ -302,7 +302,7 @@ def annotate_radial_profile(grid, label='Text'):
                     '$12.75 < \log M_{\mathrm{vir}}/M_\odot < 13.25$',
                     '$13.75 < \log M_{\mathrm{vir}}/M_\odot < 14.25$']
     for i, label in enumerate(mass_labels):
-        grid[i].text(.7, 9., label, fontsize=23, horizontalalignment='center')
+        grid[i].text(.7, 8.9, label, fontsize=23, horizontalalignment='center')
 
     desc_labels = [''.join([name, ' Centrals']) for name in ['All', 'Quenched', 'Star Forming']]
     for i, label in enumerate(desc_labels):
@@ -339,7 +339,7 @@ def plot_quenched_fraction_vs_density(name, log_dir, ax=None):
     ax.set_xlabel('$\mathrm{log}$ $\Sigma_5$')
     ax.set_ylabel('$\mathrm{Quenched}$' + ' $\mathrm{Fraction}$')
     ax.set_ylim(-0.15, 1.2)
-    ax.set_xlim(0, 2.1)
+    ax.set_xlim(-1.1, 1.3)
     colors = sns.color_palette("Greens", len(errs)+1)[1:]
     for i, (fq, cut, col, err) in enumerate(zip(actual_fq, cutoffs, colors, errs)):
         ax.plot(d, fq, color=col, lw=3, label=''.join(['$',str(cut),'<\log M_*/M_\odot<',str(cutoffs[i+1]), '$']))
