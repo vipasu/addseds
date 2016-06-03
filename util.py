@@ -186,7 +186,7 @@ def load_all_cats():
     return dats
 
 def load_dat(cats, name):
-    cats[name]['dat'] = c.calculate_projected_z(pd.read_csv(cats[name]['dir'] + 'galaxies_cut.csv'))
+    cats[name]['dat'] = pd.read_csv(cats[name]['dir'] + 'galaxies_cut.csv')
     return
 
 

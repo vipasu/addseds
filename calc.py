@@ -195,7 +195,7 @@ def get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=1,
         q = np.argsort(r)[num_neighbors - 1]
     return r[q], idx[q]
 
-def calculate_xi(cat, box_size, projected=True, rpmin=0.1, rpmax=20, Nrp=25):
+def calculate_xi(cat, box_size, projected=True, jack_nside=3, rpmin=0.1, rpmax=20, Nrp=25):
     """
     Given a catalog of galaxies, compute the correlation function using
     approriate helper functions from CorrelationFunction.py
@@ -203,21 +203,19 @@ def calculate_xi(cat, box_size, projected=True, rpmin=0.1, rpmax=20, Nrp=25):
     rbins = np.logspace(np.log10(rpmin), np.log10(rpmax), Nrp+1)
     pos = np.zeros((len(cat), 3), order='C')
     if projected:
-        coords = ['x','y','zr']
+        coords = ['x','y','zp']
     else:
         coords = ['x','y','z']
     for i, coord in enumerate(coords):
         pos[:,i] = cat[coord]/h
-    # why nside=3?
-    xi, cov, jack = projected_correlation(pos, rbins, zmax, box_size/h, jackknife_nside=3)
-    return xi, cov, jack
+    return projected_correlation(pos, rbins, zmax, box_size/h, jackknife_nside=jack_nside)
 
 
-def wprp_split(gals, red_split, box_size, cols=['ssfr','pred'],
+def wprp_split(gals, red_split, box_size, cols=['ssfr','pred'], jack_nside=3,
                   rpmin=0.1, rpmax=20.0, Nrp=25): # for 2 splits
     # want the new format to be [ r, xra, xba, xrp, xbp, vr, vb]
     r, rbins = make_r_scale(rpmin, rpmax, Nrp)
-    n_jack = 9      # hard coded value
+    n_jack = jack_nside ** 2
     results = []
     results.append(r)
     r_jack = []
@@ -225,26 +223,31 @@ def wprp_split(gals, red_split, box_size, cols=['ssfr','pred'],
     for col in cols:
         red = gals[gals[col] < red_split]
         blue = gals[gals[col] > red_split]
-        rx, rc, rj = calculate_xi(red, box_size, True, rpmin, rpmax, Nrp)
-        bx, bc, bj = calculate_xi(blue, box_size, True, rpmin, rpmax, Nrp)
-        results.append(rx)
-        results.append(bx)
-        r_jack.append(rj)
-        b_jack.append(bj)
-    r_var = np.sqrt(np.diag(np.cov(r_jack[0] - r_jack[1], rowvar=0, bias=1) * (n_jack -1)))
-    b_var = np.sqrt(np.diag(np.cov(b_jack[0] - b_jack[1], rowvar=0, bias=1) * (n_jack -1)))
+        r = calculate_xi(red, box_size, True, jack_nside, rpmin, rpmax, Nrp)
+        b = calculate_xi(blue, box_size, True, jack_nside, rpmin, rpmax, Nrp)
+        results.append(r[0])
+        results.append(b[0])
+        if jack_nside <= 1:
+            r_var = r[1]
+            b_var = b[1]
+        else:
+            r_jack.append(r[2])
+            b_jack.append(b[2])
+    if jack_nside > 1:
+        r_var = np.sqrt(np.diag(np.cov(r_jack[0] - r_jack[1], rowvar=0, bias=1) * (n_jack -1)))
+        b_var = np.sqrt(np.diag(np.cov(b_jack[0] - b_jack[1], rowvar=0, bias=1) * (n_jack -1)))
     results.append(r_var)
     results.append(b_var)
     return results
 
 
-def wprp_bins(gals, num_splits, box_size, rpmin=0.1, rpmax=20.0, Nrp=25):
+def wprp_bins(gals, num_splits, box_size, jack_nside=3, rpmin=0.1, rpmax=20.0, Nrp=25):
     """
     Takes in a data frame of galaxies and bins galaxies by ssfr. The CF is
     calculated for both predicted and actual ssfr values and passed to a helper
     function for plotting.
     """
-    n_jack = 9      # hard coded value
+    n_jack = jack_nside ** 2
     percentiles = [np.round(100. * i/(num_splits + 1)) for i in xrange(0, num_splits + 2)]
     bins = np.percentile(gals['ssfr'].values, percentiles)
 
@@ -260,14 +263,21 @@ def wprp_bins(gals, num_splits, box_size, rpmin=0.1, rpmax=20.0, Nrp=25):
         temp = []
         temp_jack = []
         for df in dfs:
-            xi, cov, jack = calculate_xi(df, box_size, True, rpmin, rpmax, Nrp)
-            temp.append(xi) # TODO: update this
-            temp_jack.append(jack)
+            wp = calculate_xi(df, box_size, True, jack_nside, rpmin, rpmax, Nrp)
+            temp.append(wp[0])
+            print wp[0]
+            if jack_nside <= 1:
+                temp_jack.append(wp[1])
+            else:
+                temp_jack.append(wp[2])
         jacks.append(temp_jack)
         results.append(temp)
-    errs = []
-    for i in xrange(num_splits + 1):
-        errs.append(np.sqrt(np.diag(np.cov(jacks[0][i] - jacks[1][i], rowvar=0, bias=1)) * (n_jack - 1)))
+    if jack_nside <= 1:
+        errs = [jack for jack in jacks]
+    else:
+        errs = []
+        for i in xrange(num_splits + 1):
+            errs.append(np.sqrt(np.diag(np.cov(jacks[0][i] - jacks[1][i], rowvar=0, bias=1)) * (n_jack - 1)))
     results.append(errs)
 
     return results  # r, ssfr, pred, errs
@@ -753,6 +763,11 @@ def abundance_match(gals, box_size, debug=False):
     print new_sm_cuts
     print red_cuts
     return new_sm_cuts, red_cuts
+
+
+def calculate_distorted_z(df):
+    df['zp'] = df['z'] + df['vz']/100
+    return
 
 
 def calculate_projected_z(df):
