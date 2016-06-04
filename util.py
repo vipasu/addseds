@@ -180,7 +180,6 @@ def load_all_cats():
     dirs = ['./data/' + name + '/' for name in names]
     box_sizes = [250.0, 250.0, 250.0, 480.0, 100.0, 75.0, 100.0]
     for name, size, data_dir in zip(names, box_sizes, dirs):
-        #dats[name]['dat'] = c.calculate_projected_z(pd.read_csv(data_dir + 'galaxies.csv'))
         dats[name]['box_size'] = size
         dats[name]['dir'] = data_dir
     return dats
@@ -228,6 +227,22 @@ def match_number_density(dats, nd=None, mstar=None):
 
         new_dats[name] = new_cat
     return new_dats
+
+def train_and_dump_rwp(gals, features, name, proxy, box_name, box_size, red_cut=-11):
+    import model
+    log_dir = get_logging_dir(box_name)
+    d_train, d_test, regressor = model.trainRegressor(gals, box_size, features, model.DecisionTreeRegressor, scaled=False)
+    wprp_dat = c.wprp_split(d_test, red_cut, box_size)
+    chi2 = wprp_dat[-1]
+    add_statistic(box_name, 'chi2_red', proxy, chi2[0])
+    add_statistic(box_name, 'chi2_blue', proxy, chi2[1])
+    dump_data(wprp_dat, name, log_dir)
+
+def load_proxies(gals, data_dir, proxy_names, dat_names):
+    for proxy, name in zip(proxy_names, dat_names):
+        d = pd.read_csv(data_dir + name + '.csv', header=None)
+        gals[proxy] = d.values
+
 
 def add_statistic(cat_name, stat_name, proxy_name, value):
     data_dir = 'data/' + cat_name + '/'
