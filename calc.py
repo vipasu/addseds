@@ -3,12 +3,10 @@ import os
 import errno
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 from fast3tree import fast3tree
 import fitsio
 import util
-import plotting as p
+from numpy.linalg import pinv
 
 ### TODO: define functionality
 # API Calls
@@ -213,7 +211,7 @@ def calculate_xi(cat, box_size, projected=True, jack_nside=3, rpmin=0.1, rpmax=2
 
 def wprp_split(gals, red_split, box_size, cols=['ssfr','pred'], jack_nside=3,
                   rpmin=0.1, rpmax=20.0, Nrp=25): # for 2 splits
-    # want the new format to be [ r, xra, xba, xrp, xbp, vr, vb]
+    # want the new format to be [ r, actual[], pred[], errs[], chi2[]]
     r, rbins = make_r_scale(rpmin, rpmax, Nrp)
     n_jack = jack_nside ** 2
     results = []
@@ -225,8 +223,7 @@ def wprp_split(gals, red_split, box_size, cols=['ssfr','pred'], jack_nside=3,
         blue = gals[gals[col] > red_split]
         r = calculate_xi(red, box_size, True, jack_nside, rpmin, rpmax, Nrp)
         b = calculate_xi(blue, box_size, True, jack_nside, rpmin, rpmax, Nrp)
-        results.append(r[0])
-        results.append(b[0])
+        results.append([r[0],b[0]])
         if jack_nside <= 1:
             r_var = r[1]
             b_var = b[1]
@@ -234,10 +231,25 @@ def wprp_split(gals, red_split, box_size, cols=['ssfr','pred'], jack_nside=3,
             r_jack.append(r[2])
             b_jack.append(b[2])
     if jack_nside > 1:
-        r_var = np.sqrt(np.diag(np.cov(r_jack[0] - r_jack[1], rowvar=0, bias=1) * (n_jack -1)))
-        b_var = np.sqrt(np.diag(np.cov(b_jack[0] - b_jack[1], rowvar=0, bias=1) * (n_jack -1)))
-    results.append(r_var)
-    results.append(b_var)
+        r_cov = np.cov(r_jack[0] - r_jack[1], rowvar=0, bias=1) * (n_jack -1)
+        b_cov = np.cov(b_jack[0] - b_jack[1], rowvar=0, bias=1) * (n_jack -1)
+        r_var = np.sqrt(np.diag(r_cov))
+        b_var = np.sqrt(np.diag(b_cov))
+    results.append([r_var, b_var])
+
+    d_r = results[1][0] - results[2][0]
+    d_b = results[1][1] - results[2][1]
+    if jack_nside > 1:
+        r_cov_inv = pinv(r_cov)
+        b_cov_inv = pinv(b_cov)
+        r_chi2 = np.dot(d_r, np.dot(r_cov_inv, d_r))/(len(d_r)-1)
+        b_chi2 = np.dot(d_b, np.dot(b_cov_inv, d_b))/(len(d_b)-1)
+        print "Goodness of fit for the red and blue: ", r_chi2, b_chi2
+    else:
+        r_chi2 = d_r**2/np.sqrt(r_var[0]**2 + r_var[1]**2)
+        b_chi2 = d_b**2/np.sqrt(b_var[0]**2 + b_var[1]**2)
+    results.append([r_chi2, b_chi2])
+
     return results
 
 
@@ -265,7 +277,6 @@ def wprp_bins(gals, num_splits, box_size, jack_nside=3, rpmin=0.1, rpmax=20.0, N
         for df in dfs:
             wp = calculate_xi(df, box_size, True, jack_nside, rpmin, rpmax, Nrp)
             temp.append(wp[0])
-            print wp[0]
             if jack_nside <= 1:
                 temp_jack.append(wp[1])
             else:

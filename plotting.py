@@ -104,8 +104,8 @@ def plot_rwp_split_truth(name, log_dir, ax=None, r_scaled=True):
 
 def plot_rwp_split(name, log_dir, ax=None, r_scaled=True):
     ### Load the data
-    #r, a_xis, a_vars, p_xis, p_vars = util.get_wprp_data(name, log_dir)
-    r, a_red, a_blue, p_red, p_blue = util.get_rwp_data(name, log_dir)
+    #r, a_red, a_blue, p_red, p_blue = util.get_rwp_data(name, log_dir)
+    r, a_red, a_blue, p_red, p_blue, chi2 = util.get_rwp_data(name, log_dir)
     if ax is None:
         fig = plt.figure(figsize=(12, 12))
         ax = plt.gca()
@@ -125,6 +125,7 @@ def plot_rwp_split(name, log_dir, ax=None, r_scaled=True):
     ax.set_xlabel('$r_p$ $[Mpc$ $h^{-1}]$')
     ax.set_xlim(9e-2, 30)
     ax.set_ylim(0, 590)
+    print chi2
     return style_plots(ax)
 
 def plot_rwp_bins(name, log_dir, ax=None, fill=False):

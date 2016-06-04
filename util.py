@@ -137,12 +137,12 @@ def get_wprp_data(name, log_dir):
 
 def get_rwp_data(name, log_dir):
     results = load_data(name, log_dir)
-    r, xra, xba, xrp, xbp, vr, vb = results
-    a_red = [xra, vr]
-    a_blue = [xba, vb]
-    p_red = [xrp, []]
-    p_blue = [xbp, []]
-    return r, a_red, a_blue, p_red, p_blue
+    r, actual, pred, errs, chi2 = results
+    a_red = [actual[0], errs[0]]
+    a_blue = [actual[1], errs[1]]
+    p_red = [pred[0], []]
+    p_blue = [pred[1], []]
+    return r, a_red, a_blue, p_red, p_blue, chi2
 
 
 def get_wprp_bin_data(name, log_dir):
@@ -228,3 +228,14 @@ def match_number_density(dats, nd=None, mstar=None):
 
         new_dats[name] = new_cat
     return new_dats
+
+def add_statistic(cat_name, stat_name, proxy_name, value):
+    data_dir = 'data/' + cat_name + '/'
+    try:
+        stat_dict = load_data('statistics.pckl', data_dir)
+    except:
+        stat_dict = defaultdict(dict)
+    if not stat_dict[stat_name].has_key(proxy_name):
+        stat_dict[stat_name][proxy_name] = []
+    stat_dict[stat_name][proxy_name].append(value)
+    dump_data(stat_dict, 'statistics.pckl', data_dir)
