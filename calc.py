@@ -208,6 +208,11 @@ def calculate_xi(cat, box_size, projected=True, jack_nside=3, rpmin=0.1, rpmax=2
         pos[:,i] = cat[coord]/h
     return projected_correlation(pos, rbins, zmax, box_size/h, jackknife_nside=jack_nside)
 
+def calculate_chi_square(true, pred, Sigma, Sigma_inv=None):
+    if Sigma_inv is None:
+        Sigma_inv = pinv(Sigma)
+    d = true-pred
+    return np.dot(d, np.dot(Sigma_inv, d))/(len(d)-1)
 
 def wprp_split(gals, red_split, box_size, cols=['ssfr','pred'], jack_nside=3,
                   rpmin=0.1, rpmax=20.0, Nrp=25): # for 2 splits
@@ -237,15 +242,13 @@ def wprp_split(gals, red_split, box_size, cols=['ssfr','pred'], jack_nside=3,
         b_var = np.sqrt(np.diag(b_cov))
     results.append([r_var, b_var])
 
-    d_r = results[1][0] - results[2][0]
-    d_b = results[1][1] - results[2][1]
     if jack_nside > 1:
-        r_cov_inv = pinv(r_cov)
-        b_cov_inv = pinv(b_cov)
-        r_chi2 = np.dot(d_r, np.dot(r_cov_inv, d_r))/(len(d_r)-1)
-        b_chi2 = np.dot(d_b, np.dot(b_cov_inv, d_b))/(len(d_b)-1)
+        r_chi2 = calculate_chi_square(results[1][0], results[2][0], r_cov)
+        b_chi2 = calculate_chi_square(results[1][1], results[2][1], r_cov)
         print "Goodness of fit for the red and blue: ", r_chi2, b_chi2
     else:
+        d_r = results[1][0] - results[2][0]
+        d_b = results[1][1] - results[2][1]
         r_chi2 = d_r**2/np.sqrt(r_var[0]**2 + r_var[1]**2)
         b_chi2 = d_b**2/np.sqrt(b_var[0]**2 + b_var[1]**2)
     results.append([r_chi2, b_chi2])
@@ -271,6 +274,8 @@ def wprp_bins(gals, num_splits, box_size, jack_nside=3, rpmin=0.1, rpmax=20.0, N
     r, rbins = make_r_scale(rpmin, rpmax, Nrp)
     results = [r]
     jacks = []
+    chi2s = []
+    jack_covs = []
     for dfs in [actual_dfs, pred_dfs]:
         temp = []
         temp_jack = []
@@ -288,10 +293,14 @@ def wprp_bins(gals, num_splits, box_size, jack_nside=3, rpmin=0.1, rpmax=20.0, N
     else:
         errs = []
         for i in xrange(num_splits + 1):
-            errs.append(np.sqrt(np.diag(np.cov(jacks[0][i] - jacks[1][i], rowvar=0, bias=1)) * (n_jack - 1)))
+            jack_covs.append(np.cov(jacks[0][i] - jacks[1][i], rowvar=0, bias=1) * (n_jack - 1))
+            errs.append(np.sqrt(np.diag(jack_covs[i])))
+            chi2s.append(calculate_chi_square(results[1][i], results[2][i], jack_covs[i]))
     results.append(errs)
+    results.append(chi2s)
+    print chi2s
 
-    return results  # r, ssfr, pred, errs
+    return results  # r, ssfr, pred, errs, chi2s
 
 
 def find_min_rhill(rs, idxs, m_sec, larger_halos):
