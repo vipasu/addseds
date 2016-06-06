@@ -147,7 +147,7 @@ def get_rwp_data(name, log_dir):
 
 def get_wprp_bin_data(name, log_dir):
     results = load_data(name, log_dir)
-    r, ssfr, pred, errs = results
+    r, ssfr, pred, errs, chi2 = results
     return r, ssfr, pred, errs
 
 
@@ -179,9 +179,11 @@ def load_all_cats():
     names = ['HW', 'Becker', 'Lu', 'Henriques', 'EAGLE', 'Illustris', 'MB-II']
     dirs = ['./data/' + name + '/' for name in names]
     box_sizes = [250.0, 250.0, 250.0, 480.0, 100.0, 75.0, 100.0]
-    for name, size, data_dir in zip(names, box_sizes, dirs):
+    red_cuts = [-11.00000, -11.357438057661057, -11.031297236680984, -10.849318951368332, -10.462226897478104, -10.186549574136734, -11.175638109445572]
+    for name, size, data_dir, red_cut in zip(names, box_sizes, dirs, red_cuts):
         dats[name]['box_size'] = size
         dats[name]['dir'] = data_dir
+        dats[name]['red_cut'] = red_cut
     return dats
 
 def load_dat(cats, name):
@@ -238,10 +240,47 @@ def train_and_dump_rwp(gals, features, name, proxy, box_name, box_size, red_cut=
     add_statistic(box_name, 'chi2_blue', proxy, chi2[1])
     dump_data(wprp_dat, name, log_dir)
 
+
+def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size):
+    import model
+    log_dir = get_logging_dir(box_name)
+    mstar_cuts = [10.0, 10.2, 10.6]     # replace with matching way
+    d_train, d_test, regressor = model.trainRegressor(gals, box_size, features, model.DecisionTreeRegressor, scaled=False)
+    for i,cut in enumerate(mstar_cuts):
+        res = c.wprp_bins(d_test[d_test.mstar.between(cut-.1, cut+.1)], 
+                          3, box_size)
+        chi2 = res[-1]
+        add_statistic(box_name, 'chi2_red_75', proxy, chi2[0])
+        add_statistic(box_name, 'chi2_red_50', proxy, chi2[1])
+        add_statistic(box_name, 'chi2_red_25', proxy, chi2[2])
+        add_statistic(box_name, 'chi2_red_00', proxy, chi2[3])
+        dump_data(res, str(i) + '_msbin_4_' + name, log_dir)
+
+
+
 def load_proxies(gals, data_dir, proxy_names, dat_names):
     for proxy, name in zip(proxy_names, dat_names):
         d = pd.read_csv(data_dir + name + '.csv', header=None)
         gals[proxy] = d.values
+
+
+def match_quenched_fraction(dat, f_q=0.477807721657):
+    hwdat = get_catalog('HW')['dat']
+    n = len(dat)
+    left, right = -13.0, -9.0
+    red_cut = (left + right)/2
+    quenched_fraction = 1.0 * len(dat[dat.ssfr < red_cut])/n
+    tol = 1e-7
+    while (right-left) > tol:
+        #print quenched_fraction
+        if quenched_fraction < f_q:
+            left = red_cut
+        else:
+            right = red_cut
+        red_cut = (left + right)/2
+        quenched_fraction = 1.0 * len(dat[dat.ssfr < red_cut])/n
+        #print left, right
+    return red_cut
 
 
 def add_statistic(cat_name, stat_name, proxy_name, value):
