@@ -4,23 +4,27 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import plotting as plots
+import sys
+from matplotlib.colors import LogNorm
 
 plots.set_plotting_context()
 
-def plot_heatmap(dat, xlabels, ylabels):
+def plot_heatmap(dat, xlabels, ylabels, name):
     num_x = len(xlabels)
     num_y = len(ylabels)
     plt.figure(figsize=(10, 10))
-    plt.pcolor(dat, cmap='coolwarm')
+    plt.pcolor(dat, cmap='RdYlGn_r', norm=LogNorm())
+    #plt.pcolor(dat, cmap='coolwarm')
     cbar = plt.colorbar()
     cbar.ax.tick_params(labelsize=15)
     plt.xticks(np.arange(num_x)+.5, xlabels, rotation='vertical', fontsize=25)
     plt.yticks(np.arange(num_y)+.5, ylabels, rotation='horizontal', fontsize=25)
     plt.subplots_adjust(bottom=0.3, left=0.3)
+    plt.title(name)
     plots.style_plots()
     plt.show()
 
-def main():
+def main(stat, stat_name):
     cats = util.load_all_cats()
     all_r_values = []
     names = cats.keys()
@@ -33,8 +37,8 @@ def main():
         r_values = []
         for p in proxies:
             try:
-                print 'std of pearsonr for ', p, '=', np.std(stat_dict['pearsonr'][p])
-                r_values.append(np.mean(stat_dict['pearsonr'][p]))
+                print 'std of ', stat,' for ', p, '=', np.std(stat_dict[stat][p])
+                r_values.append(np.mean(stat_dict[stat][p]))
             except:
                 print 'no statistics found for', p
                 r_values.append(0)
@@ -49,8 +53,10 @@ def main():
     #plots.style_plots()
     #plt.show()
     print df.values
-    plot_heatmap(df, proxies_formatted, names)
+    plot_heatmap(df, proxies_formatted, names, stat_name)
 
 if __name__ == '__main__':
-    main()
+    stat = sys.argv[1]
+    formatted_name = sys.argv[2]
+    main(stat, formatted_name)
 
