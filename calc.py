@@ -6,7 +6,7 @@ import numpy as np
 from fast3tree import fast3tree
 import fitsio
 import util
-from numpy.linalg import pinv
+from numpy.linalg import pinv, inv
 
 ### TODO: define functionality
 # API Calls
@@ -210,7 +210,10 @@ def calculate_xi(cat, box_size, projected=True, jack_nside=3, rpmin=0.1, rpmax=2
 
 def calculate_chi_square(true, pred, Sigma, Sigma_inv=None):
     if Sigma_inv is None:
-        Sigma_inv = pinv(Sigma)
+        try:
+            Sigma_inv = pinv(Sigma)
+        except:
+            Sigma_inv = inv(Sigma)
     d = true-pred
     return np.dot(d, np.dot(Sigma_inv, d))/(len(d)-1)
 

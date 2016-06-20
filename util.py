@@ -202,6 +202,24 @@ def get_catalog(name):
     del cats
     return cat
 
+def match_mstar_cut(gals, box_size, msmin, msmax):
+    hwcat = get_catalog('HW')
+    hwdf = hwcat['dat']
+
+    m_fid = hwdf.mstar.values
+    n_fid = rankdata(-m_fid)/hwcat['box_size']**3
+    mfs, nfs = zip(*sorted(zip(m_fid,n_fid)))
+
+    msmin_idx, msmax_idx = np.digitize([msmin, msmax], mfs, right=True)
+    n_min, n_max = nfs[msmin_idx], nfs[msmax_idx]
+
+    m = gals.mstar.values
+    n = rankdata(-m)/box_size**3
+    ms, ns = zip(*sorted(zip(m,n)))
+    nmin_idx, nmax_idx = np.digitize([n_min, n_max], ns, right=True)
+    return ms[nmin_idx], ms[nmax_idx]
+
+
 def match_number_density(dats, nd=None, mstar=None):
     # TODO: some sort of binning to accept mstar and translate to number density
 
@@ -244,16 +262,19 @@ def train_and_dump_rwp(gals, features, name, proxy, box_name, box_size, red_cut=
 def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size):
     import model
     log_dir = get_logging_dir(box_name)
-    mstar_cuts = [10.0, 10.2, 10.6]     # replace with matching way
+    mstar_cuts = [10.0, 10.2, 10.6]
     d_train, d_test, regressor = model.trainRegressor(gals, box_size, features, model.DecisionTreeRegressor, scaled=False)
     for i,cut in enumerate(mstar_cuts):
-        res = c.wprp_bins(d_test[d_test.mstar.between(cut-.1, cut+.1)], 
+        msmin, msmax = match_mstar_cut(gals, box_size, cut-.1, cut+.1)
+        print "Matching cut for ", cut-.1, cut+.1
+        print "\t ", msmin, msmax
+        res = c.wprp_bins(d_test[d_test.mstar.between(msmin, msmax)],
                           3, box_size)
         chi2 = res[-1]
-        add_statistic(box_name, 'chi2_red_75', proxy, chi2[0])
-        add_statistic(box_name, 'chi2_red_50', proxy, chi2[1])
-        add_statistic(box_name, 'chi2_red_25', proxy, chi2[2])
-        add_statistic(box_name, 'chi2_red_00', proxy, chi2[3])
+        stat_names = ['chi2_red_' + x for x in ['75', '50', '25', '00']]
+        stat_names = [sname + '_' + str(i) for sname in stat_names]
+        for i, sname in enumerate(stat_names):
+            add_statistic(box_name, sname, proxy, chi2[i])
         dump_data(res, str(i) + '_msbin_4_' + name, log_dir)
 
 
