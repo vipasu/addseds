@@ -259,7 +259,7 @@ def train_and_dump_rwp(gals, features, name, proxy, box_name, box_size, red_cut=
     dump_data(wprp_dat, name, log_dir)
 
 
-def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size):
+def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num_splits=3, red_cut=-11):
     import model
     log_dir = get_logging_dir(box_name)
     mstar_cuts = [10.0, 10.2, 10.6]
@@ -268,14 +268,21 @@ def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size):
         msmin, msmax = match_mstar_cut(gals, box_size, cut-.1, cut+.1)
         print "Matching cut for ", cut-.1, cut+.1
         print "\t ", msmin, msmax
-        res = c.wprp_bins(d_test[d_test.mstar.between(msmin, msmax)],
-                          3, box_size)
+        if num_splits is 3:
+            res = c.wprp_bins(d_test[d_test.mstar.between(msmin, msmax)],
+                            num_splits, box_size)
+        elif num_splits is 1:
+            res = c.wprp_split(d_test[d_test.mstar.between(msmin, msmax)],
+                            red_cut, box_size)
         chi2 = res[-1]
-        stat_names = ['chi2_red_' + x for x in ['75', '50', '25', '00']]
+        if num_splits is 3:
+            stat_names = ['chi2_red_' + x for x in ['75', '50', '25', '00']]
+        elif num_splits is 1:
+            stat_names = ['chi2_red', 'chi2_blue']
         stat_names = [sname + '_' + str(i) for sname in stat_names]
-        for i, sname in enumerate(stat_names):
-            add_statistic(box_name, sname, proxy, chi2[i])
-        dump_data(res, str(i) + '_msbin_4_' + name, log_dir)
+        for j, sname in enumerate(stat_names):
+            add_statistic(box_name, sname, proxy, chi2[j])
+        dump_data(res, str(i) + '_msbin_' + str(num_splits+1) + '_' + name, log_dir)
 
 
 
