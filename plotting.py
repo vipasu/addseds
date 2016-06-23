@@ -268,7 +268,7 @@ def plot_rwp_bins_grid(endings, log_dir, desc='msbin_4', figsize=None):
 
 def annotate_rwp_msbins(grid, labels, ncols=3, fs=40, top=1430, lheight=1050):
     c1, c2, c3 = grid[0], grid[1], grid[2]
-    c1.text(1.7, top, '$9.7 < \log M_*/M_\odot < 9.9$', fontsize=25, horizontalalignment='center')
+    c1.text(1.7, top, '$9.9 < \log M_*/M_\odot < 10.1$', fontsize=25, horizontalalignment='center')
     c2.text(1.7, top, '$10.1 < \log M_*/M_\odot < 10.3$', fontsize=25, horizontalalignment='center')
     c3.text(1.7, top, '$10.5 < \log M_*/M_\odot < 10.7$', fontsize=25, horizontalalignment='center')
 
