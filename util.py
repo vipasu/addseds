@@ -248,18 +248,19 @@ def match_number_density(dats, nd=None, mstar=None):
         new_dats[name] = new_cat
     return new_dats
 
-def train_and_dump_rwp(gals, features, name, proxy, box_name, box_size, red_cut=-11):
+def train_and_dump_rwp(gals, features, name, proxy, box_name, box_size, red_cut=-11, logging=True):
     import model
     log_dir = get_logging_dir(box_name)
     d_train, d_test, regressor = model.trainRegressor(gals, box_size, features, model.DecisionTreeRegressor, scaled=False)
     wprp_dat = c.wprp_split(d_test, red_cut, box_size)
     chi2 = wprp_dat[-1]
-    add_statistic(box_name, 'chi2_red', proxy, chi2[0])
-    add_statistic(box_name, 'chi2_blue', proxy, chi2[1])
+    if logging:
+        add_statistic(box_name, 'chi2_red', proxy, chi2[0])
+        add_statistic(box_name, 'chi2_blue', proxy, chi2[1])
     dump_data(wprp_dat, name, log_dir)
 
 
-def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num_splits=3, red_cut=-11):
+def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num_splits=3, red_cut=-11, logging=True):
     import model
     log_dir = get_logging_dir(box_name)
     mstar_cuts = [10.0, 10.2, 10.6]
@@ -280,8 +281,9 @@ def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num
         elif num_splits is 1:
             stat_names = ['chi2_red', 'chi2_blue']
         stat_names = [sname + '_' + str(i) for sname in stat_names]
-        for j, sname in enumerate(stat_names):
-            add_statistic(box_name, sname, proxy, chi2[j])
+        if logging:
+            for j, sname in enumerate(stat_names):
+                add_statistic(box_name, sname, proxy, chi2[j])
         dump_data(res, str(i) + '_msbin_' + str(num_splits+1) + '_' + name, log_dir)
 
 
