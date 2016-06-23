@@ -66,8 +66,9 @@ def catalog_selection(d0, m, msmin, msmax=None):
 
 def get_projected_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
     width_by_2 = 0.005
-    pos_tags = ['x', 'y', 'z']
-    pos = make_pos(hosts, pos_tags)
+    pos_tags = ['x', 'y']
+    host_pos = make_pos(hosts, pos_tags)
+    gal_pos = make_pos(gals, pos_tags)
     gal_z = gals.zr.values
     host_z = hosts.zr.values
     dnbr = np.zeros(len(gals))
@@ -76,8 +77,10 @@ def get_projected_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
     for i in xrange(len(gals)):
         if i % 10000 == 0: print i, len(gals)
         sel = np.where(np.abs(gal_z[i]- host_z) < width_by_2)[0]
-        center = pos[i]
-        with fast3tree(pos[sel]) as tree:
+        center = gal_pos[i]
+        with fast3tree(host_pos[sel]) as tree:
+            if len(sel) <= nn:
+                print "wow there aren't very many neighbors"
             r, ind = get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=nn, exclude_self=True)
             dnbr[i] = np.log10(r)
             for j, attr in enumerate(attrs):
