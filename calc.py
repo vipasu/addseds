@@ -7,6 +7,7 @@ from fast3tree import fast3tree
 import fitsio
 import util
 from numpy.linalg import pinv, inv
+from collections import Counter, defaultdict
 
 ### TODO: define functionality
 # API Calls
@@ -801,6 +802,37 @@ def calculate_projected_z(df):
     table = generate_z_of_r_table(0.3, 0.7)
     zred = z_of_r(df['z'], table)
     df['zr'] = zred + df['vz']/c
+    return df
+
+
+def calculate_N_gal_bolshoi(df, debug=True):
+    udf = df.sort_values(by='upid')
+    udf = udf.reset_index(drop=True)
+    counts = Counter()
+    id_to_idx = defaultdict(list)
+    for idx, row in udf.iterrows():
+        if row.upid == -1:
+            counts[row.id] += 1
+            id_to_idx[row.id].append(idx)
+        else:
+            counts[row.upid] += 1
+            id_to_idx[row.upid].append(idx)
+    udf['n_gal'] = np.zeros(len(udf))
+    for halo_id, n_gal in counts.items():
+        h_idxs = id_to_idx[halo_id] # list of indices of children
+        udf.ix[h_idxs,'n_gal'] = n_gal # n_gal should be number of children shared by host (same for all children)
+        # TODO: confirm that ngal should be shared - also doesn't matter because of host select
+    if debug:
+        all_host_ids = set(df[df.upid == -1].id.values)
+        num_no_host = 0
+        for i, row in df.iterrows():
+            if row.upid != -1 and row.upid not in all_host_ids:
+                num_no_host += 1
+        print "number of galaxies without a host:", num_no_host
+    dc = d0.sort_values(by='upid')
+    dc['n_gal'] = udf['n_gal'].values
+    dc.sort_index(inplace=True)
+    df['n_gal'] = dc['n_gal'].values
     return df
 
 
