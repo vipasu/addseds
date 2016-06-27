@@ -174,10 +174,10 @@ def get_fq_vs_d_data(name, log_dir):
     cutoffs, d, actual, pred, err = results
     return cutoffs, d, actual, pred, err
 
-def load_all_cats():
+def load_all_cats(prefix='./'):
     dats = defaultdict(dict)
     names = ['HW', 'Becker', 'Lu', 'Henriques', 'EAGLE', 'Illustris', 'MB-II']
-    dirs = ['./data/' + name + '/' for name in names]
+    dirs = [prefix + 'data/' + name + '/' for name in names]
     box_sizes = [250.0, 250.0, 250.0, 480.0, 100.0, 75.0, 100.0]
     red_cuts = [-11.00000, -11.357438057661057, -11.031297236680984, -10.849318951368332, -10.462226897478104, -10.186549574136734, -11.175638109445572]
     for name, size, data_dir, red_cut in zip(names, box_sizes, dirs, red_cuts):
@@ -191,9 +191,9 @@ def load_dat(cats, name):
     return
 
 
-def get_catalog(name):
+def get_catalog(name, dir_prefix='./'):
     print "Loading cat info..."
-    cats = load_all_cats()
+    cats = load_all_cats(dir_prefix)
     print "loading dat..."
     assert name in cats.keys()
     load_dat(cats, name)
@@ -311,6 +311,10 @@ def match_quenched_fraction(dat, f_q=0.477807721657):
         quenched_fraction = 1.0 * len(dat[dat.ssfr < red_cut])/n
         #print left, right
     return red_cut
+
+
+def read_calculation(fname):
+    return pd.read_csv(fname, header=None).values
 
 
 def add_statistic(cat_name, stat_name, proxy_name, value):
