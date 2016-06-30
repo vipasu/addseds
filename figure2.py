@@ -15,5 +15,5 @@ for name, cat, ddir in zip(names,cats,data_dirs):
     fname = 'dm5e12_all_2_1.dat'
 
     util.train_and_dump_rwp_bins(df, features, fname, proxyname, name, cat['box_size'],
-                            num_splits=1, red_cut=cat['red_cut'], logging=False)
+                            num_splits=1, red_cut=cat['red_cut'], logging=True)
 
