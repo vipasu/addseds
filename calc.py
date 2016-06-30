@@ -66,7 +66,7 @@ def catalog_selection(d0, m, msmin, msmax=None):
 
 
 def get_projected_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
-    width_by_2 = 0.005
+    width_by_2 = 0.01
     pos_tags = ['x', 'y']
     host_pos = make_pos(hosts, pos_tags)
     gal_pos = make_pos(gals, pos_tags)
@@ -82,6 +82,7 @@ def get_projected_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
         with fast3tree(host_pos[sel]) as tree:
             if len(sel) <= nn:
                 print "wow there aren't very many neighbors"
+                print "redshift: ", gal_z[i]
             r, ind = get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=nn, exclude_self=True)
             dnbr[i] = np.log10(r)
             for j, attr in enumerate(attrs):
@@ -829,10 +830,11 @@ def calculate_N_gal_bolshoi(df, debug=True):
             if row.upid != -1 and row.upid not in all_host_ids:
                 num_no_host += 1
         print "number of galaxies without a host:", num_no_host
-    dc = d0.sort_values(by='upid')
+    dc = df.sort_values(by='upid')
     dc['n_gal'] = udf['n_gal'].values
     dc.sort_index(inplace=True)
     df['n_gal'] = dc['n_gal'].values
+    print "Done"
     return df
 
 

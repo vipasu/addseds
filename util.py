@@ -225,7 +225,7 @@ def match_number_density(dats, nd=None, mstar=None):
 
     new_dats = defaultdict(dict)
     if nd is None:
-        fiducial = dats['HW']
+        fiducial = get_catalog('HW')['dat']
         m_f = fiducial['dat'].mstar.values
         n_f= rankdata(-m_f)/fiducial['box_size']**3
         nd = max(n_f)
@@ -273,6 +273,7 @@ def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num
             res = c.wprp_bins(d_test[d_test.mstar.between(msmin, msmax)],
                             num_splits, box_size)
         elif num_splits is 1:
+            print "Calling wprp split with red cut of:", red_cut
             res = c.wprp_split(d_test[d_test.mstar.between(msmin, msmax)],
                             red_cut, box_size)
         chi2 = res[-1]
@@ -290,8 +291,7 @@ def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num
 
 def load_proxies(gals, data_dir, proxy_names, dat_names):
     for proxy, name in zip(proxy_names, dat_names):
-        d = pd.read_csv(data_dir + name + '.csv', header=None)
-        gals[proxy] = d.values
+        gals[proxy] = read_calculation(data_dir + name + '.csv')
 
 
 def match_quenched_fraction(dat, f_q=0.477807721657):
@@ -314,7 +314,7 @@ def match_quenched_fraction(dat, f_q=0.477807721657):
 
 
 def read_calculation(fname):
-    return pd.read_csv(fname, header=None).values
+    return pd.read_csv(fname, header=None).values.flatten()
 
 
 def add_statistic(cat_name, stat_name, proxy_name, value):
