@@ -287,12 +287,12 @@ def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num
                 add_statistic(box_name, sname, proxy, chi2[j])
         dump_data(res, str(i) + '_msbin_' + str(num_splits+1) + '_' + name, log_dir)
 
-proxy_cache = {
+def load_feature_list(proxy, dat, cat):
+    proxy_cache = {
         'dm5e12': ['d5e12', 'm5e12'],
         'sn5e12': ['s5e12', 'ns5e12']
         }
 
-def load_feature_list(proxy, dat, cat):
     if proxy in proxy_cache.keys():
         features = proxy_cache[proxy]
     else:
@@ -305,6 +305,32 @@ def load_proxies(gals, data_dir, proxy_names, dat_names):
     for proxy, name in zip(proxy_names, dat_names):
         if proxy not in gals.columns:
             gals[proxy] = read_calculation(data_dir + name + '.csv')
+
+
+def label_from_proxy_name(name):
+    name_label_dict = {
+        'rhill':'R$_{\mathrm{hill}}$',
+        'rhillmass':'R$_{\mathrm{hill_{\mathrm{mass}}}}$',
+        'dm5e12':'(D,M)$_{\mathrm{mass}}$',
+        'dmc5e12':'(D,M,c)$_{\mathrm{mass}}$',
+        'sn5e12':'$(\Sigma,N_{\mathrm{gal}})_{\mathrm{mass}}$',
+        'd5e12':'D$_{\mathrm{mass}}$',
+        'd1':'D$_{1}$',
+        'd2':'D$_{2}$',
+        'd5':'D$_{5}$',
+        'd10':'D$_{10}$',
+        's1':'$\Sigma_{1}$',
+        's2':'$\Sigma_{2}$',
+        's5':'$\Sigma_{5}$',
+        's10':'$\Sigma_{10}$',
+    }
+    if name in name_label_dict.keys():
+        return name_label_dict[name]
+    elif name[:3] == 'rhm':
+        return r'$M/M_\odot > %s \times 10^{%s}$' %(name[3], name[5:7])
+    print "failed to write name"
+    return None
+
 
 
 def match_quenched_fraction(dat, f_q=0.477807721657):
