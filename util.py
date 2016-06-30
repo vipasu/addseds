@@ -287,11 +287,24 @@ def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num
                 add_statistic(box_name, sname, proxy, chi2[j])
         dump_data(res, str(i) + '_msbin_' + str(num_splits+1) + '_' + name, log_dir)
 
+proxy_cache = {
+        'dm5e12': ['d5e12', 'm5e12'],
+        'sn5e12': ['s5e12', 'ns5e12']
+        }
+
+def load_feature_list(proxy, dat, cat):
+    if proxy in proxy_cache.keys():
+        features = proxy_cache[proxy]
+    else:
+        features = [proxy]
+    load_proxies(dat, cat['dir'], features, features)
+    return features
 
 
 def load_proxies(gals, data_dir, proxy_names, dat_names):
     for proxy, name in zip(proxy_names, dat_names):
-        gals[proxy] = read_calculation(data_dir + name + '.csv')
+        if proxy not in gals.columns:
+            gals[proxy] = read_calculation(data_dir + name + '.csv')
 
 
 def match_quenched_fraction(dat, f_q=0.477807721657):
@@ -314,7 +327,9 @@ def match_quenched_fraction(dat, f_q=0.477807721657):
 
 
 def read_calculation(fname):
-    return pd.read_csv(fname, header=None).values.flatten()
+    values = pd.read_csv(fname, header=None).values.flatten()
+    values[np.isnan(values)] = 100
+    return values
 
 
 def add_statistic(cat_name, stat_name, proxy_name, value):
