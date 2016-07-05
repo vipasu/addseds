@@ -4,6 +4,7 @@ import util
 from matplotlib import rc
 from mpl_toolkits.axes_grid1 import Grid
 import numpy as np
+import matplotlib.gridspec as gridspec
 
 
 
@@ -350,3 +351,91 @@ def plot_quenched_fraction_vs_density(name, log_dir, ax=None):
     ax.legend(loc=3, fontsize=20)
     return style_plots(ax)
 
+
+def plot_twin_contour(ax, dist, ssfr, extent,log=True):
+    ax2 = ax.twiny()
+    if log:
+        d = np.log10(dist)
+    else:
+        d = dist
+    y_range = extent[-1:-3:-1]
+    x_range = extent[0:2]
+    hist_range = (y_range, x_range)#(extent[-1], extent[-2], extent[0]#((-13.5, -8.5), (-2.95,1.9))
+    H, xedges, yedges = np.histogram2d(add_scatter(ssfr), d, bins=40,
+                                       normed=True, range=hist_range)
+    hextent = [yedges[0], yedges[-1], xedges[0], xedges[-1]]
+    ax2.contour(H, extent=hextent, colors='k', levels=np.linspace(.1,1,6), alpha=0.8)
+    ax2.set_xticklabels([''])
+    ax2.set_xticks([])
+
+
+def hexbin_helper(ax, dist, ssfr, C, extent, cm,cnt, xscale='log'):
+    cnt = len(dist) * .0015
+    hh = ax.hexbin(dist, add_scatter(ssfr), C, xscale=xscale, mincnt=cnt,
+              extent=extent, cmap=cm, alpha=0.6, gridsize=30, vmin=0, vmax=1)
+    ax.minorticks_on()
+    return hh
+
+
+def hexbin_plots(dfs, ncols=6, cnt=20):
+    nrows = len(dfs)
+    labels = ['$\mathrm{HW}$', 'Becker', 'Lu', 'Henriques', 'Illustris',
+              '$\mathrm{EAGLE}$', '$\mathrm{MB-II}$']
+    fig = plt.figure(figsize=(17.5,3.5 * nrows + 1))
+    gs = gridspec.GridSpec(nrows, ncols+1, width_ratios =[ 1] * ncols + [.15])
+    gs.update(wspace=0, hspace=0)
+    for i, df  in enumerate(dfs):
+        print i
+        extent = [-2.95, 2.3, -8.5, -13.5]
+        mstar_extent = [8.7, 12.5, -8.5, -13.5]
+        cm = plt.get_cmap('viridis')
+        central = df.central.values
+
+        ax1 = fig.add_subplot(gs[i,0])
+        ax_list = [ax1] + [fig.add_subplot(gs[i,j]) for j in xrange(1,ncols)]
+        print len(df.mstar), len(df.ssfr), len(central)
+
+        hexbin_helper(ax_list[0], 10**df.mstar, df.ssfr, central, mstar_extent, cm, cnt)
+        plot_twin_contour(ax_list[0], 10**df.mstar, df.ssfr, mstar_extent)
+
+        hh = hexbin_helper(ax_list[1], df.rhill, df.ssfr,central, extent, cm, cnt)
+        plot_twin_contour(ax_list[1], df.rhill, df.ssfr, extent)
+
+        hexbin_helper(ax_list[2], df.rhillmass, df.ssfr,central, extent, cm, cnt)
+        plot_twin_contour(ax_list[2], df.rhillmass, df.ssfr, extent)
+
+        hexbin_helper(ax_list[3], df.d5e12, df.ssfr,central, extent, cm, cnt)
+        plot_twin_contour(ax_list[3], df.d5e12, df.ssfr, extent)
+
+        hexbin_helper(ax_list[4], 10**df.d5, df.ssfr,central, extent, cm,cnt)
+        plot_twin_contour(ax_list[4], 10**df.d5, df.ssfr, extent)
+
+        hexbin_helper(ax_list[5], 10**df.s5, df.ssfr,central, extent, cm,cnt)
+        plot_twin_contour(ax_list[5], 10**df.s5, df.ssfr, extent)
+
+        ax_list[-1].text(5e-3,-9.2,labels[i], fontsize=25)
+
+        ax1.set_ylabel('sSFR')
+        for label in ax1.yaxis.get_ticklabels()[::2]:
+            label.set_visible(False)
+        for ax in ax_list[1:]:
+            ax.set_yticklabels([])
+
+        if i != nrows-1:
+            for ax in ax_list:
+                ax.set_xticklabels([])
+        else:
+            for ax in ax_list[1:]:
+                for label in ax.xaxis.get_ticklabels()[::2]:
+                    label.set_visible(False)
+        for ax in ax_list:
+            p.style_plots(ax)
+
+    ds = ['$M_*/M_\odot$'] + [util.label_from_proxy_name(p) for p in ['rhill', 'rhillmass', 'd5e12', 'd5', 's5']]
+    for i, ax in enumerate(ax_list):
+        ax.set_xlabel(ds[i])
+        ax.xaxis.labelpad = 15
+    cax = fig.add_subplot(gs[:, ncols])
+    plt.colorbar(hh, cax=cax, label='Central Fraction')
+
+    return fig, gs, hh, cax

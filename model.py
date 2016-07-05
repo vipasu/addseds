@@ -14,4 +14,4 @@ def trainRegressor(df, box_size, features, model=DecisionTreeRegressor, scaled=F
     y_hat = regressor.predict(Xtest)
     d_test['pred'] = y_hat
     print min(y_hat), max(y_hat)
-    return d_train, d_test, model
+    return d_train, d_test, regressor

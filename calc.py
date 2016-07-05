@@ -795,10 +795,10 @@ def abundance_match(gals, box_size, debug=False):
 
 def calculate_distorted_z(df):
     df['zp'] = df['z'] + df['vz']/100
-    return
+    return df
 
 
-def calculate_projected_z(df):
+def calculate_redshift(df):
     c = 3e5     # km/s
     table = generate_z_of_r_table(0.3, 0.7)
     zred = z_of_r(df['z'], table)
