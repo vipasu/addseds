@@ -1,0 +1,7 @@
+*.pyc
+*.pickle
+*.csv
+*.png
+*.pdf
+*.ipynb
+*/*
