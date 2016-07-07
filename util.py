@@ -49,10 +49,10 @@ def scale_data(data):
     return scaler.transform(data), scaler
 
 
-def select_features(features, dataset, scaled=True):
+def select_features(features, dataset, target='ssfr', scaled=True):
     x_cols = [dataset[feature].values for feature in features]
     Xtot = np.column_stack(x_cols)
-    y = dataset['ssfr'].values
+    y = dataset[target].values
     if scaled:
         Xtot, x_scaler = scale_data(Xtot)
         y, y_scaler = scale_data(y)
