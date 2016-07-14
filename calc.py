@@ -9,7 +9,6 @@ import util
 from numpy.linalg import pinv, inv
 from collections import Counter, defaultdict
 
-### TODO: define functionality
 # API Calls
 # c.wprp
 # c.wprp_split
@@ -32,11 +31,9 @@ Nrp = 25
 rbins = np.logspace(np.log10(rpmin), np.log10(rpmax), Nrp+1)
 r = np.sqrt(rbins[1:]*rbins[:-1])
 
-## TODO: define a catalog class
-
 
 def make_pos(gals, pos_tags=['x', 'y', 'z']):
-    pos = np.zeros((len(gals), 3))
+    pos = np.zeros((len(gals[pos_tags[0]]), 3))
     for i, tag in enumerate(pos_tags):
         pos[:, i] = gals[tag][:]
     return pos
@@ -70,13 +67,14 @@ def get_projected_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
     pos_tags = ['x', 'y']
     host_pos = make_pos(hosts, pos_tags)
     gal_pos = make_pos(gals, pos_tags)
-    gal_z = gals.zr.values
-    host_z = hosts.zr.values
-    dnbr = np.zeros(len(gals))
-    res = [np.zeros(len(gals)) for attr in attrs]
+    N = len(gals[pos_tags[0]])
+    gal_z = gals['zr']
+    host_z = hosts['zr']
+    dnbr = np.zeros(N)
+    res = [np.zeros(N) for attr in attrs]
 
-    for i in xrange(len(gals)):
-        if i % 10000 == 0: print i, len(gals)
+    for i in xrange(N):
+        if i % 10000 == 0: print i, N
         sel = np.where(np.abs(gal_z[i]- host_z) < width_by_2)[0]
         center = gal_pos[i]
         with fast3tree(host_pos[sel]) as tree:
@@ -86,7 +84,7 @@ def get_projected_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
             r, ind = get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=nn, exclude_self=True)
             dnbr[i] = np.log10(r)
             for j, attr in enumerate(attrs):
-                res[j][i] = hosts.ix[sel][attr].values[ind]
+                res[j][i] = hosts[attr][sel][ind]
     return dnbr, res
 
 
@@ -98,18 +96,19 @@ def get_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
     attrs - list of attributes (i.e. ['mvir','vmax'])
     """
     pos_tags = ['x', 'y', 'z']
+    N = len(gals[pos_tags[0]])
     pos = make_pos(hosts, pos_tags)
 
-    dnbr = np.zeros(len(gals))
-    res = [np.zeros(len(gals)) for attr in attrs]
+    dnbr = np.zeros(N)
+    res = [np.zeros(N) for attr in attrs]
     with fast3tree(pos) as tree:
-        for i in xrange(len(gals)):
-            if i % 10000 == 0: print i, len(gals)
-            center = [gals[tag].values[i] for tag in pos_tags]
+        for i in xrange(N):
+            if i % 10000 == 0: print i, N
+            center = [gals[tag][i] for tag in pos_tags]
             r, ind = get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=nn, exclude_self=True)
             dnbr[i] = np.log10(r)
             for j, attr in enumerate(attrs):
-                res[j][i] = hosts[attr].values[ind]
+                res[j][i] = hosts[attr][ind]
     return dnbr, res
 
 
@@ -370,28 +369,6 @@ def calculate_r_hill(galaxies, hosts, box_size, projected=False):
         halo_masses.append(halo_mass)
 
     return np.array(r_hills), np.array(halo_dists), np.array(halo_masses)
-
-
-#def quenched_fraction(catalog, nbins=14):
-#    masses, ssfr, pred = catalog.mvir.values, catalog.ssfr.values, catalog.pred.values
-#    bins = np.logspace(np.log10(np.min(masses)), np.log10(np.max(masses)), nbins)
-#
-#    # TODO: needs error bars
-#    red_cut = -11.0
-#    actual_red, = np.where(ssfr < red_cut)
-#    pred_red, = np.where(pred < red_cut)
-#    actual_blue, = np.where(ssfr > red_cut)
-#    pred_blue, = np.where(pred > red_cut)
-#
-#    actual_red_counts, _ = np.histogram(masses[actual_red], bins)
-#    actual_blue_counts, _ = np.histogram(masses[actual_blue], bins)
-#    pred_red_counts, _ = np.histogram(masses[pred_red], bins)
-#    pred_blue_counts, _ = np.histogram(masses[pred_blue], bins)
-#
-#    f_q_actual = 1.0 * actual_red_counts / (actual_red_counts + actual_blue_counts)
-#    f_q_predicted = 1.0 * pred_red_counts / (pred_red_counts + pred_blue_counts)
-#
-#    return f_q_actual, f_q_predicted
 
 
 def color_counts_for_HOD(id_to_bin, objects, nbins, red_cut=-11.0, id='upid', col='ssfr'):
