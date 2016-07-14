@@ -8,6 +8,7 @@ import fitsio
 from scipy.stats import rankdata
 from collections import defaultdict
 from functools import reduce
+import numpy.lib.recfunctions
 
 
 def fits_to_pandas(df):
@@ -28,20 +29,14 @@ def mkdir_p(path):
 
 
 def split_test_train(d, box_size, fraction=0.125):
+    np.random.seed(1234)
+    N = len(d)
+    order = np.random.permutation(N)
+    train_N = int(fraction * N)
 
-    d_train = d.sample(frac=fraction, random_state=5432)
-    d_test = d[~d.index.isin(d_train.index)]
-    d_train = d_train.reset_index(drop=True)
-    d_test = d_test.reset_index(drop=True)
+    d_train = d[order[:train_N]]
+    d_test = d[order[train_N:]]
     return d_train, d_test
-
-
-def split_octant(d, box_size):
-    d_octant = d[(d['x'] < box_size/2) & (d['y'] < box_size/2) & (d['z'] < box_size/2)]
-    d_rest = d[~d.index.isin(d_octant.index)]
-    d_octant = d_octant.reset_index(drop=True)
-    d_rest = d_rest.reset_index(drop=True)
-    return d_octant, d_rest
 
 
 def scale_data(data):
@@ -50,40 +45,15 @@ def scale_data(data):
 
 
 def select_features(features, dataset, target='ssfr', scaled=True):
-    x_cols = [dataset[feature].values for feature in features]
+    x_cols = [dataset[feature] for feature in features]
     Xtot = np.column_stack(x_cols)
-    y = dataset[target].values
+    y = dataset[target]
     if scaled:
         Xtot, x_scaler = scale_data(Xtot)
         y, y_scaler = scale_data(y)
         return Xtot, y, x_scaler, y_scaler
     else:
         return Xtot, y
-
-
-def pre_process(features, target, d, seed=5432):
-    """
-    Given features x1 and x2, and the galaxy catalog d, shuffle the data and
-    then split into train and testing sets.
-    """
-    # machine learning bit
-    N_points = len(d)
-    # get the features X and the outputs y
-    Xtot = np.column_stack(features)
-
-    Xtot, x_scaler = scale_data(Xtot)
-    y, y_scaler = scale_data(target)
-
-    np.random.seed(seed)
-    shuffle = np.random.permutation(N_points)
-    Xtot = Xtot[shuffle]
-    y = y[shuffle]
-
-    split = int(N_points * .5)
-    Xtrain, Xtest = Xtot[:split, :], Xtot[split:, :]
-    ytrain, ytest = y[:split], y[split:]
-    d_train, d_test = d.ix[shuffle[:split]], d.ix[shuffle[split:]]
-    return Xtrain, Xtest, ytrain, ytest, d_train, d_test, x_scaler, y_scaler
 
 
 def jackknife_octant_samples(gals, box_size):
@@ -99,8 +69,8 @@ def jackknife_octant_samples(gals, box_size):
         for y in [0,1]:
             for z in [0,1]:
                 include, exclude = box_split(gals, x, y, z)
-                exclude_ids = set(exclude.id.values)
-                results.append(include[include.apply(lambda x: x.upid not in exclude_ids, axis=1)])
+                exclude_ids = set(exclude.id)
+                results.append(include[np.where(map(lambda x: x.upid not in exclude_ids, include))])
     return results
 
 
@@ -206,14 +176,14 @@ def match_mstar_cut(gals, box_size, msmin, msmax):
     hwcat = get_catalog('HW')
     hwdf = hwcat['dat']
 
-    m_fid = hwdf.mstar.values
+    m_fid = hwdf.mstar
     n_fid = rankdata(-m_fid)/hwcat['box_size']**3
     mfs, nfs = zip(*sorted(zip(m_fid,n_fid)))
 
     msmin_idx, msmax_idx = np.digitize([msmin, msmax], mfs, right=True)
     n_min, n_max = nfs[msmin_idx], nfs[msmax_idx]
 
-    m = gals.mstar.values
+    m = gals.mstar
     n = rankdata(-m)/box_size**3
     ms, ns = zip(*sorted(zip(m,n)))
     nmin_idx, nmax_idx = np.digitize([n_min, n_max], ns, right=True)
@@ -226,12 +196,12 @@ def match_number_density(dats, nd=None, mstar=None):
     new_dats = defaultdict(dict)
     if nd is None:
         fiducial = get_catalog('HW')['dat']
-        m_f = fiducial['dat'].mstar.values
+        m_f = fiducial['dat']['mstar']
         n_f= rankdata(-m_f)/fiducial['box_size']**3
         nd = max(n_f)
         print nd
     for name, cat in dats.items():
-        m = cat['dat'].mstar.values
+        m = cat['dat']['mstar']
         n = rankdata(-m)/cat['box_size']**3
         m_s, n_s = zip(*sorted(zip(m,n)))
 
@@ -243,12 +213,12 @@ def match_number_density(dats, nd=None, mstar=None):
         d = cat['dat']
         new_cat = cat.copy()
         new_cat['cut'] = ms_cut
-        new_cat['dat'] = d[d.mstar > ms_cut]
+        new_cat['dat'] = d[d['mstar'] > ms_cut]
 
         new_dats[name] = new_cat
     return new_dats
 
-def train_and_dump_rwp(gals, features, name, proxy, box_name, box_size, red_cut=-11, logging=True):
+def train_and_dump_rwp(gals, features, name, proxy, box_name, box_size, red_cut=-11, logging=True, target='ssfr'):
     import model
     log_dir = get_logging_dir(box_name)
     d_train, d_test, regressor = model.trainRegressor(gals, box_size, features, model.DecisionTreeRegressor, scaled=False)
@@ -260,7 +230,7 @@ def train_and_dump_rwp(gals, features, name, proxy, box_name, box_size, red_cut=
     dump_data(wprp_dat, name, log_dir)
 
 
-def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num_splits=3, red_cut=-11, logging=True):
+def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num_splits=3, red_cut=-11, logging=True, target='ssfr'):
     import model
     log_dir = get_logging_dir(box_name)
     mstar_cuts = [10.0, 10.2, 10.6]
@@ -303,8 +273,10 @@ def load_feature_list(proxy, dat, cat):
 
 def load_proxies(gals, data_dir, proxy_names, dat_names):
     for proxy, name in zip(proxy_names, dat_names):
-        if proxy not in gals.columns:
-            gals[proxy] = read_calculation(data_dir + name + '.csv')
+        if proxy not in gals.dtype.names:
+            d = np.load(data_dir + name + '.npy')
+            gals = numpy.lib.recfunctions.append_fields(gals, proxy, d, usemask=False, asrecarray=True)
+    return gals
 
 
 def label_from_proxy_name(name):
@@ -351,11 +323,6 @@ def match_quenched_fraction(dat, f_q=0.477807721657):
         #print left, right
     return red_cut
 
-
-def read_calculation(fname):
-    values = pd.read_csv(fname, header=None).values.flatten()
-    values[np.isnan(values)] = 100
-    return values
 
 
 def add_statistic(cat_name, stat_name, proxy_name, value):
