@@ -12,6 +12,7 @@ def trainRegressor(df, box_size, features, target='ssfr', pred_label='pred', mod
     regressor.fit(Xtrain, ytrain)
 
     y_hat = regressor.predict(Xtest)
-    d_test[pred_label] = y_hat
+    d_test = np.lib.recfunctions.append_fields(d_test, pred_label, y_hat,
+            usemask=False, asrecarray=True)
     print min(y_hat), max(y_hat)
     return d_train, d_test, regressor
