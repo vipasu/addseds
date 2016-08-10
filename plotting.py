@@ -67,7 +67,9 @@ def style_plots(ax=None):
 def plot_wprp(r, xi, var, ax, color):
     if len(var) > 0:
         ax.loglog(r, xi, '-', color=color)
-        ax.fill_between(r, (xi - var), (xi + var), color=color, alpha=0.5)
+        minus = np.clip(xi - var, a_min=1e-5, a_max=np.nan)
+        plus = xi + var
+        ax.fill_between(r, minus, plus, color=color, alpha=0.5)
     else:
         ax.loglog(r, xi, '--', color=color, alpha=0.6)
     return style_plots(ax)
@@ -103,47 +105,58 @@ def plot_rwp_split_truth(name, log_dir, ax=None, r_scaled=True):
     return style_plots(ax)
 
 
-def plot_rwp_split(name, log_dir, ax=None, r_scaled=True):
+def plot_rwp_split(name, log_dir, ax=None, r_scaled=True, lo_col=red_col,
+                   hi_col=blue_col):
     ### Load the data
     #r, a_red, a_blue, p_red, p_blue = util.get_rwp_data(name, log_dir)
     r, a_red, a_blue, p_red, p_blue, chi2 = util.get_rwp_data(name, log_dir)
     if ax is None:
-        fig = plt.figure(figsize=(12, 12))
+        plt.figure(figsize=(12, 12))
         ax = plt.gca()
     ax.set_xscale('log')
     if r_scaled:
-        plot_rwp(r, a_red[0], a_red[1], ax, red_col)
-        plot_rwp(r, a_blue[0], a_blue[1], ax, blue_col)
-        plot_rwp(r, p_red[0], p_red[1], ax, red_col)
-        plot_rwp(r, p_blue[0], p_blue[1], ax, blue_col)
+        plot_rwp(r, a_red[0], a_red[1], ax, lo_col)
+        plot_rwp(r, a_blue[0], a_blue[1], ax, hi_col)
+        plot_rwp(r, p_red[0], p_red[1], ax, lo_col)
+        plot_rwp(r, p_blue[0], p_blue[1], ax, hi_col)
         ax.set_ylabel('$r_p$ $w_p(r_p)$ $[Mpc$ $h^{-1}]$')
+        ax.set_ylim(0, 1190)
     else:
-        plot_wprp(r, a_red[0], a_red[1], ax, red_col)
-        plot_wprp(r, a_blue[0], a_blue[1], ax, blue_col)
-        plot_wprp(r, p_red[0], p_red[1], ax, red_col)
-        plot_wprp(r, p_blue[0], p_blue[1], ax, blue_col)
+        plot_wprp(r, a_red[0], a_red[1], ax, lo_col)
+        plot_wprp(r, a_blue[0], a_blue[1], ax, hi_col)
+        plot_wprp(r, p_red[0], p_red[1], ax, lo_col)
+        plot_wprp(r, p_blue[0], p_blue[1], ax, hi_col)
         ax.set_ylabel('$w_p(r_p)$')
+        ax.set_ylim(1, 7e3)
     ax.set_xlabel('$r_p$ $[Mpc$ $h^{-1}]$')
     ax.set_xlim(9e-2, 30)
-    ax.set_ylim(0, 590)
     print chi2
-    return style_plots(ax)
+    return style_plots(ax), chi2
 
-def plot_rwp_bins(name, log_dir, ax=None, fill=False):
+def plot_rwp_bins(name, log_dir, ax=None, r_scale=True):
     r, actual, pred, errs = util.get_wprp_bin_data(name, log_dir)
     if ax is None:
         fig = plt.figure(figsize=(12, 12))
         ax = plt.gca()
     colors = sns.blend_palette([red_col, blue_col], len(actual))
     for col, xi, var in zip(colors, actual, errs):
-        plot_rwp(r, xi, var, ax, col)
+        if r_scale:
+            plot_rwp(r, xi, var, ax, col)
+        else:
+            plot_wprp(r, xi, var, ax, col)
     for col, xi in zip(colors, pred):
-        plot_rwp(r, xi, [], ax, col)
-    ax.set_ylabel('$r_p$ $w_p(r_p)$ $[Mpc$ $h^{-1}]$', fontsize=27)
+        if r_scale:
+            plot_rwp(r, xi, [], ax, col)
+        else:
+            plot_wprp(r, xi, [], ax, col)
+    if r_scale:
+        ax.set_ylabel('$r_p$ $w_p(r_p)$ $[Mpc$ $h^{-1}]$', fontsize=27)
+    else:
+        ax.set_ylabel('$w_p(r_p)$ $[Mpc$ $h^{-1}]$', fontsize=27)
     ax.set_xlabel('$r_p$ $[Mpc$ $h^{-1}]$', fontsize=27)
     ax.set_xscale('log')
     ax.set_xlim(9e-2, 30)
-    ax.set_ylim(0, 1390)
+    # ax.set_ylim(0, 1390)
     return style_plots(ax)
 
 
@@ -245,18 +258,27 @@ def plot_radial_profile_grid(name, log_dir, frac=False):
     return grid
 
 
-def plot_rwp_bins_grid(endings, log_dir, desc='msbin_4', figsize=None):
+def plot_rwp_bins_grid(endings, log_dir, desc='msbin_4', figsize=None,
+                       r_scale=True):
     nrows = len(endings)
     ncols=3
     if not figsize:
-        figsize = (16, 4 * nrows + 1)
+        figsize = (20, 4 * nrows + 1)
     fig = plt.figure(figsize=figsize)
-    grid = Grid(fig, rect=111, nrows_ncols=(nrows,ncols), axes_pad=0, label_mode='L')
+
+    grid = Grid(fig, rect=111, nrows_ncols=(nrows, ncols), axes_pad=0,
+                label_mode='L')
+
     for i, dat in enumerate(endings):
-        fnames =  ['_'.join(filter(lambda x: x is not '', [str(n), desc, dat])) for n in xrange(3)]
+        fnames =  ['_'.join(filter(lambda x: x is not '', [str(n), desc, dat]))
+                   for n in xrange(3)]
         for j, name in enumerate(fnames):
             ax = grid[i*ncols + j]
-            plot_rwp_bins(name, log_dir, ax)
+            plot_rwp_bins(name, log_dir, ax, r_scale)
+            if r_scale:
+                ax.set_ylim(0, 1190)
+            else:
+                ax.set_ylim(1, 7e3)
             ax.minorticks_on()
             ax.yaxis.label.set_size(40)
             ax.xaxis.label.set_size(40)
