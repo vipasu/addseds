@@ -1,13 +1,11 @@
+from collections import Counter, defaultdict
 from CorrelationFunction import projected_correlation
-import os
-import errno
 import pandas as pd
 import numpy as np
+from numpy.linalg import pinv, inv
 from fast3tree import fast3tree
 import fitsio
 import util
-from numpy.linalg import pinv, inv
-from collections import Counter, defaultdict
 
 # API Calls
 # c.wprp
@@ -271,7 +269,7 @@ def wprp_bins(gals, num_splits, box_size, jack_nside=3, rpmin=0.1, rpmax=20.0, N
     """
     n_jack = jack_nside ** 2
     percentiles = [np.round(100. * i/(num_splits + 1)) for i in xrange(0, num_splits + 2)]
-    bins = np.percentile(gals['ssfr'].values, percentiles)
+    bins = np.percentile(gals['ssfr'], percentiles)
 
     actual_dfs, pred_dfs = [], []
     for i in range(len(bins) - 1):
@@ -832,7 +830,6 @@ def generate_z_of_r_table(omegam, omegal, zmax=2.0, npts=1000):
     return z_of_r_table
 
 def z_of_r(r, table):
-
     npts = len(table)
     try:
         nz = len(r)
@@ -841,7 +838,7 @@ def z_of_r(r, table):
 
     zred = np.zeros(nz)-1
 
-    if nz==1:
+    if nz == 1:
         for i in range(1, npts):
             if (table['r'][i] > r): break
         slope = (table['z'][i] - table['z'][i-1])/(table['r'][i]-table['r'][i-1])
@@ -850,7 +847,7 @@ def z_of_r(r, table):
         for i in range(1, npts):
             ii, = np.where((r >= table['r'][i-1]) & (r < table['r'][i]))
             count = len(ii)
-            if (count == 0): continue
+            if count == 0: continue
             slope = (table['z'][i] - table['z'][i-1])/(table['r'][i]-table['r'][i-1])
             zred[ii] = table['z'][i-1] + slope*(r[ii]-table['r'][i-1])
 

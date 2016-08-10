@@ -1,10 +1,9 @@
 import os
-import calc as c
 import cPickle as pickle
+import calc as c
 import numpy as np
 import errno
 import pandas as pd
-import fitsio
 from scipy.stats import rankdata
 from collections import defaultdict
 from functools import reduce
@@ -157,7 +156,9 @@ def load_all_cats(prefix='./'):
     return dats
 
 def load_dat(cats, name):
-    cats[name]['dat'] = pd.read_csv(cats[name]['dir'] + 'galaxies_cut.csv')
+    # cats[name]['dat'] = pd.read_csv(cats[name]['dir'] + 'galaxies_cut.csv')
+    cats[name]['dat'] = np.load(cats[name]['dir'] + 'halos.npy')
+
     return
 
 
@@ -176,14 +177,14 @@ def match_mstar_cut(gals, box_size, msmin, msmax):
     hwcat = get_catalog('HW')
     hwdf = hwcat['dat']
 
-    m_fid = hwdf.mstar
+    m_fid = hwdf['mstar']
     n_fid = rankdata(-m_fid)/hwcat['box_size']**3
     mfs, nfs = zip(*sorted(zip(m_fid,n_fid)))
 
     msmin_idx, msmax_idx = np.digitize([msmin, msmax], mfs, right=True)
     n_min, n_max = nfs[msmin_idx], nfs[msmax_idx]
 
-    m = gals.mstar
+    m = gals['mstar']
     n = rankdata(-m)/box_size**3
     ms, ns = zip(*sorted(zip(m,n)))
     nmin_idx, nmax_idx = np.digitize([n_min, n_max], ns, right=True)
@@ -221,8 +222,10 @@ def match_number_density(dats, nd=None, mstar=None):
 def train_and_dump_rwp(gals, features, name, proxy, box_name, box_size, red_cut=-11, logging=True, target='ssfr'):
     import model
     log_dir = get_logging_dir(box_name)
-    d_train, d_test, regressor = model.trainRegressor(gals, box_size, features, model.DecisionTreeRegressor, scaled=False)
-    wprp_dat = c.wprp_split(d_test, red_cut, box_size)
+    d_train, d_test, regressor = model.trainRegressor(gals, box_size, features,
+            target, scaled=False)
+    cols = [target, 'pred']
+    wprp_dat = c.wprp_split(d_test, red_cut, box_size, cols=cols)
     chi2 = wprp_dat[-1]
     if logging:
         add_statistic(box_name, 'chi2_red', proxy, chi2[0])
@@ -234,17 +237,21 @@ def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num
     import model
     log_dir = get_logging_dir(box_name)
     mstar_cuts = [10.0, 10.2, 10.6]
-    d_train, d_test, regressor = model.trainRegressor(gals, box_size, features, model.DecisionTreeRegressor, scaled=False)
+    d_train, d_test, regressor = model.trainRegressor(gals, box_size, features,
+                                                      target=target, model=model.DecisionTreeRegressor, scaled=False)
     for i,cut in enumerate(mstar_cuts):
         msmin, msmax = match_mstar_cut(gals, box_size, cut-.1, cut+.1)
         print "Matching cut for ", cut-.1, cut+.1
         print "\t ", msmin, msmax
+
+        mstar_sel = np.where((d_test['mstar'] < msmax) & (d_test['mstar'] > msmin))[0]
+
         if num_splits is 3:
-            res = c.wprp_bins(d_test[d_test.mstar.between(msmin, msmax)],
+            res = c.wprp_bins(d_test[mstar_sel],
                             num_splits, box_size)
         elif num_splits is 1:
             print "Calling wprp split with red cut of:", red_cut
-            res = c.wprp_split(d_test[d_test.mstar.between(msmin, msmax)],
+            res = c.wprp_split(d_test[mstar_sel],
                             red_cut, box_size)
         chi2 = res[-1]
         if num_splits is 3:
@@ -260,22 +267,26 @@ def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num
 def load_feature_list(proxy, dat, cat):
     proxy_cache = {
         'dm5e12': ['d5e12', 'm5e12'],
-        'sn5e12': ['s5e12', 'ns5e12']
+        'dmc5e12': ['d5e12', 'm5e12', 'c5e12'],
+        'sn5e12': ['s5e12', 'ns5e12'],
         }
 
     if proxy in proxy_cache.keys():
         features = proxy_cache[proxy]
     else:
         features = [proxy]
-    load_proxies(dat, cat['dir'], features, features)
     return features
 
 
 def load_proxies(gals, data_dir, proxy_names, dat_names):
     for proxy, name in zip(proxy_names, dat_names):
         if proxy not in gals.dtype.names:
-            d = np.load(data_dir + name + '.npy')
-            gals = numpy.lib.recfunctions.append_fields(gals, proxy, d, usemask=False, asrecarray=True)
+            vals = np.load(data_dir + name + '.npy')
+            nan_sel = np.where(np.isnan(vals))[0]
+            if len(nan_sel) > 0:
+                print "Replacing %d NaN values for %s" % (len(nan_sel), proxy)
+                vals[nan_sel] = 100
+            gals = add_rec_column(gals, proxy, vals)
     return gals
 
 
@@ -324,7 +335,6 @@ def match_quenched_fraction(dat, f_q=0.477807721657):
     return red_cut
 
 
-
 def add_statistic(cat_name, stat_name, proxy_name, value):
     data_dir = 'data/' + cat_name + '/'
     try:
@@ -335,3 +345,15 @@ def add_statistic(cat_name, stat_name, proxy_name, value):
         stat_dict[stat_name][proxy_name] = []
     stat_dict[stat_name][proxy_name].append(value)
     dump_data(stat_dict, 'statistics.pckl', data_dir)
+
+
+def recarray_from_npz(fname):
+    dat = np.load(fname)
+    return np.recarray({x : dat[x] for x in dat.files})
+
+
+def add_rec_column(arr, name, vals):
+    return numpy.lib.recfunctions.append_fields(arr, name, vals, usemask=False,
+            asrecarray=True)
+
+
