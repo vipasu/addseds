@@ -453,10 +453,24 @@ def calculate_r_hill(galaxies, hosts, box_size, projected=False):
 
 
 def color_counts_for_HOD(id_to_bin, objects, nbins, red_cut=-11.0, id='upid', col='ssfr'):
+    """ Counts the number of red and blue galaxies in bins of host halo mass.
+
+    Accepts:
+        id_to_bin - dict from halo ids to mass bins
+        objects - array-like structure with galaxy/halo ids and colors
+        nbins - number of mass bins
+        red_cut - sSFR value which separates red/blue galaxies
+        id - column name to grab associated host halo. 'upid' for satellites
+             and 'id' for centrals
+        col - column name for color. Usually 'ssfr' or 'pred'
+    Returns:
+        {blue,red}_counts - counts of galaxies associated with halos in a given
+                            mass bin
+    """
     blue_counts, red_counts = np.zeros(nbins), np.zeros(nbins)
     bins = pd.Series(objects[id]).map(id_to_bin)
-    cols = pd.Series(objects[col]).map(lambda x: x < red_cut)
-    for bin_id, red in zip(bins, cols):
+    colors = objects[col] < red_cut
+    for bin_id, red in zip(bins, colors):
         if not np.isnan(bin_id):
             if red:
                 red_counts[bin_id] += 1
@@ -466,8 +480,26 @@ def color_counts_for_HOD(id_to_bin, objects, nbins, red_cut=-11.0, id='upid', co
 
 
 def HOD(d0, test_gals, msmin=9.8, msmax=None, log_space=None):
-    mvir = d0['mvir'].values
+    """
+    Calculates the Halo Occupation Distribution on d0 and test_gals in a given
+    stellar mass bin.
+
+    Accepts:
+        d0 - Full galaxy catalog
+        test_gals - Partial galaxy catalog for which there are predicted colors
+        msmin - lower limit on stellar mass
+        msmax - upper limit on stellar mass (None to specify cumulative range)
+        log_space - bins for mass of host halos
+    Returns:
+        results - [centers, [actual], [pred]]
+            centers - host halo mass bin values
+            [actual] - HOD for centrals (red/blue) and satellites (red/blue)
+            [pred] - predicted HOD for centrals (red/blue) and satellites (red/blue)
+
+    """
+    mvir = d0['mvir']
     red_cut = -11.0
+
     # create equal spacing on log scale
     if log_space is None:
         log_space = np.arange(np.log10(np.min(mvir)), np.log10(np.max(mvir)),.2)
@@ -477,6 +509,7 @@ def HOD(d0, test_gals, msmin=9.8, msmax=None, log_space=None):
     halos = d0[d0['upid'] == -1]
     centrals = halos[halos['mstar'] > msmin]
     satellites = d0[(d0['upid'] != -1) & (d0['mstar'] > msmin)]
+
     if msmax:
         satellites = satellites[satellites['mstar'] < msmax]
         centrals = centrals[centrals['mstar'] < msmax]
@@ -499,7 +532,7 @@ def HOD(d0, test_gals, msmin=9.8, msmax=None, log_space=None):
     pred_cents = test_gals[test_gals['upid'] == -1]
     num_pred_blue_s, num_pred_red_s = color_counts_for_HOD(halo_id_to_bin, pred_sats, nbins, id='upid', col='pred')
     num_pred_blue_c, num_pred_red_c = color_counts_for_HOD(halo_id_to_bin, pred_cents, nbins, id='id', col='pred')
-    # TODO: verify that I should be comparing the real color of the full thing to 8/7 times the predicted ones
+
     results = []
     results.append(centers)
     results.append([[num_actual_red_c/num_halos, num_actual_blue_c/num_halos], [num_actual_red_s/num_halos, num_actual_blue_s/num_halos]])
@@ -508,6 +541,9 @@ def HOD(d0, test_gals, msmin=9.8, msmax=None, log_space=None):
 
 
 def HOD_wrapper(df, test_gals, box_size):
+    """
+    Splits up the galaxies into octants and passes the data to HOD
+    """
     full_octants = util.jackknife_octant_samples(df, box_size)
     test_octants = util.jackknife_octant_samples(test_gals, box_size)
     log_space = np.arange(np.log10(np.min(df.mvir)), np.log10(np.max(df.mvir)),.2)
@@ -605,6 +641,7 @@ def radial_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
         results.append(errs)
     return results
 
+
 def radial_profile(hosts, gals, box_size, rmin=0.1, rmax=5.0, Nrp=10):
     r, rbins = make_r_scale(rmin, rmax, Nrp)
     results = [r]
@@ -626,33 +663,6 @@ def radial_profile(hosts, gals, box_size, rmin=0.1, rmax=5.0, Nrp=10):
         gal_sel = gal_sel.reset_index(drop=True)
         counts = radial_profile_counts(gal_sel, host_sel, box_size, r, rbins, rmax)
         results.append(counts)
-
-    return results
-
-
-def density_profile_wrapper(hosts, gals, box_size, rmin=0.1, rmax=5.0, Nrp=10):
-    hosts = hosts.reset_index(drop=True)
-    octants = util.jackknife_octant_samples(gals, box_size)
-    host_octs = util.jackknife_octant_samples(hosts, box_size)
-    r, rbins = make_r_scale(rmin, rmax, Nrp)
-    results = [r]
-
-    profiles = []
-    for i, (octant, host_oct) in enumerate(zip(octants, host_octs)):
-        #print 'octant: ', i
-        profiles.append(density_profile(host_oct, octant, box_size, rmin, rmax, Nrp))
-
-    n_jack = len(octants)
-    #print len(profiles[0][2])
-    for i in xrange(3):
-        num_reds = np.array([result[i+1][0] for result in profiles])
-        num_blues = np.array([result[i+1][1] for result in profiles])
-        num_pred_reds = np.array([result[i+1][2] for result in profiles])
-        num_pred_blues = np.array([result[i+1][3] for result in profiles])
-        results.append([np.mean(num_reds, axis=0), np.mean(num_blues, axis=0),
-            np.mean(num_pred_reds, axis=0), np.mean(num_pred_blues, axis=0),
-            np.sqrt(np.diag(np.cov(num_reds - num_pred_reds, rowvar=0, bias=1)) * (n_jack - 1)),
-            np.sqrt(np.diag(np.cov(num_blues - num_pred_blues, rowvar=0, bias=1)) * (n_jack - 1))])
 
     return results
 
@@ -773,51 +783,6 @@ def density_vs_fq_wrapper(gals, box_size, cutoffs, red_cut=-11.0, nbins=10):
 
     results = [cutoffs, centers, actual_fqs, pred_fqs, errs]
     return results
-
-
-def density_match(gals, box_size, HW, sm_cuts, debug=False):
-    # sample_size = 1./box_size # I think this is how I came up with the number
-    densities = []
-    test_cuts = np.arange(9,11.5,.01)
-    for cut in test_cuts:
-        #densities.append(len(gals[gals.mstar > cut]) / box_size**3/sample_size)
-        densities.append(len(gals[gals.mstar > cut]) / box_size**3)
-
-    actual_densities = [len(HW[HW.mstar > cut])/250.0**3 for cut in sm_cuts]
-
-    if debug:
-        print 'HW densities are: ',actual_densities
-        plt.plot(test_cuts, densities, '.')
-        plt.plot(sm_cuts, actual_densities, '*')
-        p.style_plots()
-
-    # matching
-    idxs = np.digitize(actual_densities, densities)
-    return test_cuts[idxs]
-
-
-def match_quenched_fraction(gals, new_sm_cuts, HW, sm_cuts, red_cut, debug=False):
-    def fq_helper(gals, cut):
-        return 1.0 * sum(gals.ssfr < cut) / len(gals)
-    actual_f_q = [fq_helper(HW[HW.mstar > cut], red_cut) for cut in sm_cuts]
-    print actual_f_q
-    new_red_cuts = []
-    test_red_cuts = np.arange(-11.5,-9.5,.01)
-    if debug:
-        sns.kdeplot(gals.ssfr)
-        plt.figure()
-    for i, (new_sm_cut, old_sm_cut) in enumerate(zip(new_sm_cuts, sm_cuts)):
-        quenched_fractions = []
-        for cut in test_red_cuts:
-            quenched_fractions.append(fq_helper(gals[gals.mstar > new_sm_cut], cut))
-        if debug:
-            plt.plot(test_red_cuts, quenched_fractions)
-        idx = np.digitize([actual_f_q[i]], quenched_fractions)[0] # array and dearray
-        new_red_cuts.append(test_red_cuts[idx])
-    if debug:
-        plt.plot([red_cut] * 3, actual_f_q, '*')
-        p.style_plots()
-    return new_red_cuts
 
 
 def calculate_distorted_z(df):
