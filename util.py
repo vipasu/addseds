@@ -286,7 +286,7 @@ def load_proxies(gals, data_dir, proxy_names, dat_names):
             if len(nan_sel) > 0:
                 print "Replacing %d NaN values for %s" % (len(nan_sel), proxy)
                 vals[nan_sel] = 100
-            gals = add_rec_column(gals, proxy, vals)
+            gals = add_column(gals, proxy, vals)
     return gals
 
 
@@ -352,7 +352,7 @@ def recarray_from_npz(fname):
     return np.recarray({x : dat[x] for x in dat.files})
 
 
-def add_rec_column(arr, name, vals):
+def add_column(arr, name, vals):
     return numpy.lib.recfunctions.append_fields(arr, name, vals, usemask=False,
             asrecarray=True)
 

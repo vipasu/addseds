@@ -521,9 +521,9 @@ def HOD(d0, test_gals, msmin=9.8, msmax=None, log_space=None):
 
     # create map from upid to host mass to bin
     halo_id_to_bin = {}
-    for _, halo in halos.iterrows():
-        bin_id = np.digitize([halo['mvir']], edges, right=True)[0]
-        halo_id_to_bin[halo['id']] = min(bin_id, nbins-1)
+    for i in xrange(len(halos)):
+        bin_id = np.digitize([halos['mvir'][i]], edges, right=True)[0]
+        halo_id_to_bin[halos['id'][i]] = min(bin_id, nbins-1)
 
     num_actual_blue_s, num_actual_red_s = color_counts_for_HOD(halo_id_to_bin, satellites, nbins, id='upid', col='ssfr')
     num_actual_blue_c, num_actual_red_c = color_counts_for_HOD(halo_id_to_bin, centrals, nbins, id='id', col='ssfr')
@@ -596,6 +596,8 @@ def HOD_wrapper(df, test_gals, box_size):
 
 
 def radial_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
+    """ Calculates the distribution of gals around hosts as a function of r
+    """
     num_halos = len(hosts)
     results = []
     pos = make_pos(gals)
@@ -606,10 +608,10 @@ def radial_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
         num_reds, num_blues = [],[]
         num_pred_reds, num_pred_blues = [], []
         diff_reds, diff_blues = [], []
-        for j, halo in hosts.iterrows():
+        for j in xrange(len(hosts)):
             num_red, num_blue = np.zeros(len(r)), np.zeros(len(r))
             num_pred_red, num_pred_blue = np.zeros(len(r)), np.zeros(len(r))
-            center = [halo[tag] for tag in pos_tags]
+            center = [hosts[tag][j] for tag in pos_tags]
             idxs, pos = tree.query_radius(center, rmax, periodic=box_size, output='both')
             rs = get_3d_distance(center, pos, box_size=box_size)
             msk = rs > 0
@@ -618,11 +620,11 @@ def radial_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
             for dist, sat_idx in zip(rs, idxs):
                 rbin = np.digitize([dist], rbins) - 1 # -1 for the r vs rbin
                 # indexing reflects return values from tree
-                if gals['ssfr'].values[sat_idx] < -11:
+                if gals['ssfr'][sat_idx] < -11:
                     num_red[rbin] += 1
                 else:
                     num_blue[rbin] += 1
-                if gals['pred'].values[sat_idx] < -11:
+                if gals['pred'][sat_idx] < -11:
                     num_pred_red[rbin] += 1
                 else:
                     num_pred_blue[rbin] += 1
@@ -643,24 +645,24 @@ def radial_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
 
 
 def radial_profile(hosts, gals, box_size, rmin=0.1, rmax=5.0, Nrp=10):
+    """ Wrapper around radial_profile_counts for different mass bins of halos.
+    """
     r, rbins = make_r_scale(rmin, rmax, Nrp)
     results = [r]
     gals = gals[gals.upid != -1]
-    gals = gals.reset_index(drop=True)
 
-    mvir = hosts['mvir'].values
+    mvir = hosts['mvir']
     delta = 0.25
     masses = [12,13,14]
     mlims = [[10**(mass-delta), 10**(mass+delta)] for mass in masses]
 
     for lim in mlims:
         host_sel = hosts[(hosts.mvir > lim[0]) & (hosts.mvir < lim[1])]
-        host_ids = set(host_sel.id.values)
+        host_ids = set(host_sel['id'])
         gal_sel = gals.copy()
-        gal_sel['include'] = [upid in host_ids for upid in gal_sel.upid.values]
+        gal_sel = util.add_column(gal_sel, 'include',
+                        [upid in host_ids for upid in gal_sel['upid']])
         gal_sel = gal_sel[gal_sel['include'] == True]
-        host_sel = host_sel.reset_index(drop=True)
-        gal_sel = gal_sel.reset_index(drop=True)
         counts = radial_profile_counts(gal_sel, host_sel, box_size, r, rbins, rmax)
         results.append(counts)
 
@@ -668,6 +670,8 @@ def radial_profile(hosts, gals, box_size, rmin=0.1, rmax=5.0, Nrp=10):
 
 
 def counts_for_fq(df, red_cut, col, x_vals, bins):
+    """Histogram of red and blue galaxies binned by x_vals
+    """
     sel = np.where(df[col])
     red_sel = np.where(df[col] < red_cut)[0]
     blue_sel = np.where(df[col] > red_cut)[0]
@@ -677,18 +681,18 @@ def counts_for_fq(df, red_cut, col, x_vals, bins):
 
 
 def quenched_fraction(gals, red_cut, host_mass_dict, mbins=None, nbins=14):
+    """ Calculates quenched fraction as a function of host halo mass
+    """
     cents = gals[gals.upid == -1]
     sats = gals[gals.upid != -1]
-    sats.reset_index(drop=True)
-    cents = cents.reset_index(drop=True)
-    central_masses = cents.mvir.values
+    central_masses = cents['mvir']
     host_ids = set(host_mass_dict.keys())
-    sats = sats[sats.upid.isin(host_ids)]
-    sats = sats.reset_index(drop=True)
-    sat_host_masses = np.array([host_mass_dict[sat.upid] for _, sat in sats.iterrows()])
+    #sats = sats[sats.upid.isin(host_ids)]
+    sats = sats[np.where(sats['upid'] in host_ids)[0]]
+    sat_host_masses = np.array([host_mass_dict[upid] for upid in sats['upid']])
 
     if mbins is None:
-        masses = gals.mvir.values
+        masses = gals.mvir
         mbins = np.logspace(np.log10(np.min(masses)), np.log10(np.max(masses)), nbins)
     centers = np.sqrt(mbins[:-1] * mbins[1:])
     results = [centers]
@@ -703,6 +707,8 @@ def quenched_fraction(gals, red_cut, host_mass_dict, mbins=None, nbins=14):
 
 
 def quenched_fraction_wrapper(gals, box_size, mass_dict, red_cut=-11.0, nbins=14):
+    """ Splits the quenched fraction into octants to calculate jackknife errors
+    """
     octants = util.jackknife_octant_samples(gals, box_size)
     masses = gals.mvir.values
     mbins = np.logspace(np.log10(np.min(masses)), np.log10(np.max(masses)), nbins)
@@ -746,8 +752,12 @@ def quenched_fraction_wrapper(gals, box_size, mass_dict, red_cut=-11.0, nbins=14
 
 
 def density_vs_fq(gals, cutoffs, red_cut=-11, dbins=None, nbins=10):
-    sections = [gals[(gals['mstar'] >= cutoffs[i]) & (gals['mstar'] < cutoffs[i+1])] for i in xrange(len(cutoffs)-1)]
-    s5 = gals['$\Sigma_{5}$'].values
+    """ Calculates the quenched fraction binned by Sigma 5
+    """
+    sections = [gals[(gals['mstar'] >= cutoffs[i]) &
+                     (gals['mstar'] < cutoffs[i+1])]
+                for i in xrange(len(cutoffs)-1)]
+    s5 = gals['s5']
     print len(s5)
     if dbins is None:
         dbins = np.linspace(min(s5), max(s5), nbins)
@@ -757,15 +767,17 @@ def density_vs_fq(gals, cutoffs, red_cut=-11, dbins=None, nbins=10):
     for col in ['ssfr', 'pred']:
         temp = []
         for section in sections:
-            dists = section['$\Sigma_{5}$'].values
+            dists = section['s5']
             temp.append(counts_for_fq(section, red_cut, col, dists, dbins))
         results.append(temp)
     return results
 
 
 def density_vs_fq_wrapper(gals, box_size, cutoffs, red_cut=-11.0, nbins=10):
+    """ Calculates quenched fraction vs density in octants to include JK errors
+    """
     octants = util.jackknife_octant_samples(gals, box_size)
-    s5 = gals['$\Sigma_{5}$'].values
+    s5 = gals['s5']
     dbins = np.linspace(min(s5), max(s5), nbins)
     centers = (dbins[:-1] + dbins[1:])/2
     fq_s = []
@@ -786,11 +798,15 @@ def density_vs_fq_wrapper(gals, box_size, cutoffs, red_cut=-11.0, nbins=10):
 
 
 def calculate_distorted_z(df):
-    df['zp'] = df['z'] + df['vz']/100
-    return df
+    """Calculates redshift distortion used in redshift space distances.
+    """
+    zp = df['z'] + df['vz']/100
+    return util.add_column(df, 'zp', zp)
 
 
 def calculate_redshift(df):
+    """Calculates redshifts based on a line of sight.
+    """
     c = 3e5     # km/s
     table = generate_z_of_r_table(0.3, 0.7)
     zred = z_of_r(df['z'], table)
