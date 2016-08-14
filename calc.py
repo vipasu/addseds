@@ -1,26 +1,17 @@
+"""
+calc.py contains routines that are core to nearest neighbor, rhill, and halo
+statistic calculations.
+"""
+
 from collections import Counter, defaultdict
 from CorrelationFunction import projected_correlation
 import pandas as pd
 import numpy as np
 from numpy.linalg import pinv, inv
 from fast3tree import fast3tree
-import fitsio
 import util
 
-# API Calls
-# c.wprp
-# c.wprp_split
-# c.HOD
-# c.density_profile
-
-# desired checks
-# make sure everyone has a position
-# has mstar
-# has ssfr
-# has id
-
 h = 0.7
-L = 250.0/h
 zmax = 40.0
 
 rpmin = 0.1
@@ -31,6 +22,7 @@ r = np.sqrt(rbins[1:]*rbins[:-1])
 
 
 def make_pos(gals, pos_tags=['x', 'y', 'z']):
+    """ Makes an array of of shape (N,3) with specified coordinates."""
     pos = np.zeros((len(gals[pos_tags[0]]), 3))
     for i, tag in enumerate(pos_tags):
         pos[:, i] = gals[tag][:]
@@ -38,29 +30,25 @@ def make_pos(gals, pos_tags=['x', 'y', 'z']):
 
 
 def make_r_scale(rmin, rmax, Nrp):
+    """ Provides bins and their centers between rmin and rmax."""
     rbins = np.logspace(np.log10(rmin), np.log10(rmax), Nrp+1)
     r = np.sqrt(rbins[1:]*rbins[:-1])
     return r, rbins
 
 
-def catalog_selection(d0, m, msmin, msmax=None):
-    """
-    Create host set with mvir > m
-    and galaxy set with mstar in the range (msmin, msmax)
-    """
-    # get parent halo set
-    hosts = d0[(d0.upid == -1) & (d0.mvir >= m)]
-    hosts = hosts.reset_index(drop=True)
-
-    # make stellar mass bin
-    df = d0[d0.mstar >= msmin]
-    if msmax is not None:
-        df = df[df.mstar < msmax]
-    df = df.reset_index(drop=True)
-    return df, hosts
-
-
 def get_projected_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
+    """
+    Selects the nn-th nearest neighbor in redshift space from gals in hosts.
+
+    Accepts:
+        hosts - list of objects to search for nearest neighbors
+        gals - objects to find nearest neighbors of
+        nn - specifies which nearest neighbor to find
+        attrs - list of properties to grab from halos (i.e. ['mvir', 'c'])
+    Returns:
+        dnbr - distances to the nn-th neighbor
+        res - array of shape (len(attrs), len(gals))
+    """
     width_by_2 = 0.01
     pos_tags = ['x', 'y']
     host_pos = make_pos(hosts, pos_tags)
@@ -72,14 +60,18 @@ def get_projected_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
     res = [np.zeros(N) for attr in attrs]
 
     for i in xrange(N):
-        if i % 10000 == 0: print i, N
-        sel = np.where(np.abs(gal_z[i]- host_z) < width_by_2)[0]
+        if i % 10000 == 0:
+            print i, N
+        sel = np.where(np.abs(gal_z[i] - host_z) < width_by_2)[0]
         center = gal_pos[i]
         with fast3tree(host_pos[sel]) as tree:
             if len(sel) <= nn:
-                print "wow there aren't very many neighbors"
+                print "Insufficient number of neighbors in redshift bin"
                 print "redshift: ", gal_z[i]
-            r, ind = get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=nn, exclude_self=True)
+                assert False
+            r, ind = get_nearest_nbr_periodic(center, tree, box_size,
+                                              num_neighbors=nn,
+                                              exclude_self=True)
             dnbr[i] = np.log10(r)
             for j, attr in enumerate(attrs):
                 res[j][i] = hosts[attr][sel][ind]
@@ -88,10 +80,16 @@ def get_projected_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
 
 def get_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
     """
-    hosts - parent set of halos
-    gals - galaxy set
-    nn - num neighbors
-    attrs - list of attributes (i.e. ['mvir','vmax'])
+    Selects the nn-th nearest neighbor in real space from gals in hosts.
+
+    Accepts:
+        hosts - list of objects to search for nearest neighbors
+        gals - objects to find nearest neighbors of
+        nn - specifies which nearest neighbor to find
+        attrs - list of properties to grab from halos (i.e. ['mvir', 'c'])
+    Returns:
+        dnbr - distances to the nn-th neighbor
+        res - array of shape (len(attrs), len(gals))
     """
     pos_tags = ['x', 'y', 'z']
     N = len(gals[pos_tags[0]])
@@ -101,9 +99,12 @@ def get_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
     res = [np.zeros(N) for attr in attrs]
     with fast3tree(pos) as tree:
         for i in xrange(N):
-            if i % 10000 == 0: print i, N
+            if i % 10000 == 0:
+                print i, N
             center = [gals[tag][i] for tag in pos_tags]
-            r, ind = get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=nn, exclude_self=True)
+            r, ind = get_nearest_nbr_periodic(center, tree, box_size,
+                                              num_neighbors=nn,
+                                              exclude_self=True)
             dnbr[i] = np.log10(r)
             for j, attr in enumerate(attrs):
                 res[j][i] = hosts[attr][ind]
@@ -111,9 +112,11 @@ def get_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
 
 
 def wrap_boundary(pos, box_size):
+    """ Enforces that values in pos fall between 0 and box_size. """
     pos[pos < 0] += box_size
     pos[pos > box_size] -= box_size
     return pos
+
 
 def get_distance(center, pos, box_size=-1):
     """
@@ -142,6 +145,9 @@ def get_distance(center, pos, box_size=-1):
 
 
 def get_3d_distance(center, pos, box_size=-1):
+    """
+    Computes distance between points in 3D.
+    """
     dx = get_distance(center[0], pos[:, 0], box_size=box_size)
     dy = get_distance(center[1], pos[:, 1], box_size=box_size)
     dz = get_distance(center[2], pos[:, 2], box_size=box_size)
@@ -149,19 +155,25 @@ def get_3d_distance(center, pos, box_size=-1):
     return np.sqrt(r2)
 
 
-def get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=1,
-                             exclude_self=True):
+def get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=1):
     """
-    This function is massively inefficient. It makes two calls to the
-    tree code because right now the tree code only returns the distance
-    to the nearest neighbor, not the index or a pointer. The first call
-    gets a fiducial distance in the primary simulation image. Then you
-    find all points within that distance in all images and get the closest.
-    Modified to be able to return the nth_nearest object specified by
-    num_neighbors.
+    Locates the num_neighbors-th nearest object from center in tree.
+    Assumes periodic boundary conditions.
+    The query radius around center is iteratively doubled until there are at
+    least num_neighbors objects within the query radius.
+
+    Accepts:
+        center - 3d coordinate for query point
+        tree - fast3tree containing neighbors to search
+        box_size - size at which to wrap around coordinates
+        num_neighbors - which nearest neighbor to return
+
+    Returns:
+        r - distance to the num_neighbors nearest neighbor
+        idx - index in the tree corresponding to the object found
     """
     half_box_size = box_size/2.0
-    tree.set_boundaries(0.0, box_size) ##!! important
+    tree.set_boundaries(0.0, box_size)
     rfid = tree.query_nearest_distance(center)
     if rfid >= half_box_size:
         rfid = half_box_size - 2e-6
@@ -170,10 +182,10 @@ def get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=1,
         if rfid > half_box_size:
             rfid = half_box_size - 2e-6
     rfid += 1e-6
-    double_count = 0
     while True:
         assert rfid < half_box_size
-        idx, pos = tree.query_radius(center, rfid, periodic=box_size, output='both')
+        idx, pos = tree.query_radius(center, rfid, periodic=box_size,
+                                     output='both')
         if rfid == half_box_size - 1e-6:
             break
         if len(idx) < num_neighbors+1:
@@ -183,10 +195,9 @@ def get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=1,
         else:
             break
     r = get_3d_distance(center, pos, box_size)
-    if exclude_self:
-        msk = r > 0.0
-        r = r[msk]
-        idx = idx[msk]
+    msk = r > 0.0
+    r = r[msk]
+    idx = idx[msk]
     if num_neighbors < 0:
         q = np.argsort(r)
     elif len(r) < num_neighbors:
@@ -195,32 +206,45 @@ def get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=1,
         q = np.argsort(r)[num_neighbors - 1]
     return r[q], idx[q]
 
-def calculate_xi(cat, box_size, projected=True, jack_nside=3, rpmin=0.1, rpmax=20, Nrp=25):
+
+def calculate_xi(gals, box_size, projected=True, jack_nside=3, rpmin=0.1,
+                 rpmax=20, Nrp=25):
     """
     Given a catalog of galaxies, compute the correlation function using
     approriate helper functions from CorrelationFunction.py
     """
     rbins = np.logspace(np.log10(rpmin), np.log10(rpmax), Nrp+1)
-    pos = np.zeros((len(cat), 3), order='C')
+    pos = np.zeros((len(gals), 3), order='C')
     if projected:
-        coords = ['x','y','zp']
+        coords = ['x', 'y', 'zp']
     else:
-        coords = ['x','y','z']
+        coords = ['x', 'y', 'z']
     for i, coord in enumerate(coords):
-        pos[:,i] = cat[coord]/h
-    return projected_correlation(pos, rbins, zmax, box_size/h, jackknife_nside=jack_nside)
+        pos[:, i] = gals[coord]/h
+    return projected_correlation(pos, rbins, zmax, box_size/h,
+                                 jackknife_nside=jack_nside)
 
-def calculate_chi_square(true, pred, Sigma, Sigma_inv=None):
+
+def calculate_chi_square(truth, pred, Sigma, Sigma_inv=None):
+    """
+    Calculates the chi squared value from two distributions and the covariance.
+
+    Accepts:
+    truth, pred - array-like objects to compare the goodness of fit
+    Sigma - Covariance matrix (usually from jackknife)
+    Sigma_inv - Optionally pass in the inverted covariance matrix.
+    """
     if Sigma_inv is None:
         try:
             Sigma_inv = pinv(Sigma)
         except:
             Sigma_inv = inv(Sigma)
-    d = true-pred
-    return np.dot(d, np.dot(Sigma_inv, d))/(len(d)-1)
+    d = truth - pred
+    return np.dot(d, np.dot(Sigma_inv, d))/(len(d) - 1)
 
-def wprp_split(gals, red_split, box_size, cols=['ssfr','pred'], jack_nside=3,
-                  rpmin=0.1, rpmax=20.0, Nrp=25): # for 2 splits
+
+def wprp_split(gals, red_split, box_size, cols=['ssfr', 'pred'], jack_nside=3,
+               rpmin=0.1, rpmax=20.0, Nrp=25):  # for 2 splits
     # want the new format to be [ r, actual[], pred[], errs[], chi2[]]
     r, rbins = make_r_scale(rpmin, rpmax, Nrp)
     n_jack = jack_nside ** 2
@@ -233,7 +257,7 @@ def wprp_split(gals, red_split, box_size, cols=['ssfr','pred'], jack_nside=3,
         blue = gals[gals[col] > red_split]
         r = calculate_xi(red, box_size, True, jack_nside, rpmin, rpmax, Nrp)
         b = calculate_xi(blue, box_size, True, jack_nside, rpmin, rpmax, Nrp)
-        results.append([r[0],b[0]])
+        results.append([r[0], b[0]])
         if jack_nside <= 1:
             r_var = r[1]
             b_var = b[1]
@@ -241,8 +265,8 @@ def wprp_split(gals, red_split, box_size, cols=['ssfr','pred'], jack_nside=3,
             r_jack.append(r[2])
             b_jack.append(b[2])
     if jack_nside > 1:
-        r_cov = np.cov(r_jack[0] - r_jack[1], rowvar=0, bias=1) * (n_jack -1)
-        b_cov = np.cov(b_jack[0] - b_jack[1], rowvar=0, bias=1) * (n_jack -1)
+        r_cov = np.cov(r_jack[0] - r_jack[1], rowvar=0, bias=1) * (n_jack - 1)
+        b_cov = np.cov(b_jack[0] - b_jack[1], rowvar=0, bias=1) * (n_jack - 1)
         r_var = np.sqrt(np.diag(r_cov))
         b_var = np.sqrt(np.diag(b_cov))
     results.append([r_var, b_var])
@@ -652,7 +676,6 @@ def quenched_fraction_wrapper(gals, box_size, mass_dict, red_cut=-11.0, nbins=14
     return results
 
 
-
 def density_vs_fq(gals, cutoffs, red_cut=-11, dbins=None, nbins=10):
     sections = [gals[(gals['mstar'] >= cutoffs[i]) & (gals['mstar'] < cutoffs[i+1])] for i in xrange(len(cutoffs)-1)]
     s5 = gals['$\Sigma_{5}$'].values
@@ -738,36 +761,6 @@ def match_quenched_fraction(gals, new_sm_cuts, HW, sm_cuts, red_cut, debug=False
     return new_red_cuts
 
 
-def abundance_match(gals, box_size, debug=False):
-    '''
-    Returns the stellar mass cuts which match the density of the H&W catalog
-    along with the cuts in sSFR to make the quenched fraction correct at each
-    of the stellar mass cuts.
-    '''
-    # TODO: Make sure that all the catalogs are using units of log mstar
-
-    # Hard coded values to match against
-    d_hw = util.fits_to_pandas(fitsio.read('data/HW/Becker_CAM_mock.fits', lower=True))
-    sm_cuts = [9.8, 10.2, 10.6]
-    red_cut = -11
-
-    if debug:
-        plt.figure()
-    new_sm_cuts = density_match(gals, box_size, d_hw, sm_cuts, debug)
-
-    if debug:
-        plt.figure()
-        for cut in new_sm_cuts:
-            sns.kdeplot(gals[gals.mstar > cut].ssfr)
-
-    if debug:
-        plt.figure()
-    red_cuts = match_quenched_fraction(gals, new_sm_cuts, d_hw, sm_cuts, red_cut, debug)
-    print new_sm_cuts
-    print red_cuts
-    return new_sm_cuts, red_cuts
-
-
 def calculate_distorted_z(df):
     df['zp'] = df['z'] + df['vz']/100
     return df
@@ -829,6 +822,7 @@ def generate_z_of_r_table(omegam, omegal, zmax=2.0, npts=1000):
         z_of_r_table['r'][i] = z_of_r_table['r'][i-1] + 1./(ThisH*Thisa*Thisa)*da*c
     return z_of_r_table
 
+
 def z_of_r(r, table):
     npts = len(table)
     try:
@@ -853,11 +847,13 @@ def z_of_r(r, table):
 
     return zred
 
+
 def ssfr_from_sfr(x):
     if x.sfr == 0.0:
         return -12
     else:
         return np.log10(x.sfr/(10**x.mstar))
+
 
 def color_am(ssfr, rhill):
     r_order = np.argsort(rhill)
