@@ -1,3 +1,9 @@
+"""
+Contains code for generating common plots. See util.py for examples of data
+formatting.
+The general idea is that plotting code should be completely separate from the
+calculation code to avoid unnecessary recomputation.
+"""
 import matplotlib.pyplot as plt
 import seaborn as sns
 import util
@@ -8,53 +14,25 @@ import matplotlib.gridspec as gridspec
 
 
 
-## http://python4mpia.github.io/plotting/advanced.html
-## Make sure to close figures
-## ax = fig.add_subplot(1, 1, 1)
-## ax.set_xticks([0.1, 0.5, 0.7]) #custom placed tick marks
-## ax.set_xticklabels(['a', 'b', 'c']) or ax.set_xticklabels(' ')
-## ax.set_title
-
-## major_ticks = np.arange(0, 101, 20)
-## minor_ticks = np.arange(0, 101, 5)
-## ax.set_xticks(major_ticks)
-## ax.set_xticks(minor_ticks, minor=True)
-
-## Removing y-axis' labels
-## ax.set_yticklabels('',visible=False)
-
-## pad the bottom
-## ax.tick_params(axis='x', pad=8)
-
-## plt.rcParams['axes.linewidth'] = 1.5
-## plt.rcParams['xtick.major.size'] = 8
-## plt.rcParams['xtick.minor.size'] = 4
-## plt.rcParams['ytick.major.size'] = 6
-## plt.rcParams['ytick.minor.size'] = 3
-## plt.rcParams['ytick.minor.size'] = 3
-
-## usage with all the params
-## ax1.tick_params(axis='x',which='major',direction='out',length=4,width=4,color='b',pad=10,labelsize=20,labelcolor='g')
-
 
 red_col, blue_col = sns.xkcd_rgb['reddish'], sns.xkcd_rgb['blue']
 
-## For use with temporary contexts
-def get_plotting_context():
-    return sns.plotting_context('poster', font_scale=3.5,
-                                rc={'xtick.labelsize': 25,
-                                    'ytick.labelsize': 25,
-                                    'legend.fontsize': 25})
 
 def set_plotting_context():
-    sns.set(font_scale=3.5, rc={'xtick.labelsize': 25,'ytick.labelsize': 25,'legend.fontsize': 25})
+    """
+    Sets plotting parameters and changes text to look like Latex.
+    """
+    sns.set(font_scale=3.5, rc={'xtick.labelsize': 25, 'ytick.labelsize': 25,
+                                'legend.fontsize': 25})
     sns.set_style('ticks')
     rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
-    #rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
     rc('text', usetex=True)
 
 
 def style_plots(ax=None):
+    """
+    Changes ticks so that minor ticks are included and are inside the axes box
+    """
     if ax is None:
         ax = plt.gca()
     ax.tick_params(which='minor',axis='both',color='k',length=4,width=1, direction='in')
@@ -65,6 +43,9 @@ def style_plots(ax=None):
 
 
 def plot_wprp(r, xi, var, ax, color):
+    """ Plots xi(r) with error bars on ax in a given color
+    If var is an empty list, no error bars will be plotted.
+    """
     if len(var) > 0:
         ax.loglog(r, xi, '-', color=color)
         minus = np.clip(xi - var, a_min=1e-5, a_max=np.nan)
@@ -76,6 +57,9 @@ def plot_wprp(r, xi, var, ax, color):
 
 
 def plot_rwp(r, xi, var, ax, color):
+    """ Plots r * xi(r) with error bars on ax in a given color
+    If var is an empty list, no error bars will be plotted.
+    """
     if len(var) > 0:
         ax.plot(r, r * xi, '-', color=color)
         ax.fill_between(r, r * (xi - var), r * (xi + var), color=color, alpha=0.5)
@@ -84,31 +68,18 @@ def plot_rwp(r, xi, var, ax, color):
     return style_plots(ax)
 
 
-def plot_rwp_split_truth(name, log_dir, ax=None, r_scaled=True):
-    r, a_red, a_blue, p_red, p_blue, chi2 = util.get_wprp_data(name, log_dir)
-    if ax is None:
-        fig = plt.figure(figsize=(12, 12))
-        ax = plt.gca()
-    ax.set_xscale('log')
-    a = 0.5
-    if r_scaled:
-        ax.plot(r, r *a_red[0], color='k', alpha=a)
-        ax.plot(r, r *a_blue[0], color='k', alpha=a)
-        ax.set_ylabel('$r_p$ $w_p(r_p)$ $[Mpc$ $h^{-1}]$')
-    else:
-        ax.plot(r, a_red[0], color='k', alpha=a)
-        ax.plot(r, a_blue[0], color='k', alpha=a)
-        ax.set_ylabel('$w_p(r_p)$')
-    ax.set_xlabel('$r_p$ $[Mpc$ $h^{-1}]$')
-    ax.set_xlim(9e-2, 30)
-    ax.set_ylim(0, 590)
-    return style_plots(ax)
-
-
 def plot_rwp_split(name, log_dir, ax=None, r_scaled=True, lo_col=red_col,
                    hi_col=blue_col):
-    ### Load the data
-    #r, a_red, a_blue, p_red, p_blue = util.get_wprp_data(name, log_dir)
+    """
+    Plots clustering data stored in log_dir/name. Assumes that there are two
+    correlation functions, split on some quantity (generally red_cut for sSFR)
+    Params:
+        r_scaled - Whether wp should be multiplied by r before plotting
+        lo_col - color which describes the clustering of galaxies who have sSFR
+                 lower than red_cut (or concentration, spin)
+        hi_col - color which describes the clustering of galaxies who have sSFR
+                 higher than red_cut (or concentration, spin)
+    """
     r, a_red, a_blue, p_red, p_blue, chi2 = util.get_wprp_data(name, log_dir)
     if ax is None:
         plt.figure(figsize=(12, 12))
@@ -133,7 +104,36 @@ def plot_rwp_split(name, log_dir, ax=None, r_scaled=True, lo_col=red_col,
     print chi2
     return style_plots(ax), chi2
 
+
+def plot_rwp_split_truth(name, log_dir, ax=None, r_scaled=True):
+    """
+    Plots clustering data in solid grey. Used when plotting clustering in HW
+    next to the clustering of other catalogs.
+    """
+    r, a_red, a_blue, p_red, p_blue, chi2 = util.get_wprp_data(name, log_dir)
+    if ax is None:
+        fig = plt.figure(figsize=(12, 12))
+        ax = plt.gca()
+    ax.set_xscale('log')
+    a = 0.5
+    if r_scaled:
+        ax.plot(r, r *a_red[0], color='k', alpha=a)
+        ax.plot(r, r *a_blue[0], color='k', alpha=a)
+        ax.set_ylabel('$r_p$ $w_p(r_p)$ $[Mpc$ $h^{-1}]$')
+    else:
+        ax.plot(r, a_red[0], color='k', alpha=a)
+        ax.plot(r, a_blue[0], color='k', alpha=a)
+        ax.set_ylabel('$w_p(r_p)$')
+    ax.set_xlabel('$r_p$ $[Mpc$ $h^{-1}]$')
+    ax.set_xlim(9e-2, 30)
+    ax.set_ylim(0, 590)
+    return style_plots(ax)
+
+
 def plot_rwp_bins(name, log_dir, ax=None, r_scale=True):
+    """
+    Plots clustering in different bins of sSFR
+    """
     r, actual, pred, errs = util.get_wprp_bin_data(name, log_dir)
     if ax is None:
         fig = plt.figure(figsize=(12, 12))
@@ -156,17 +156,17 @@ def plot_rwp_bins(name, log_dir, ax=None, r_scale=True):
     ax.set_xlabel('$r_p$ $[Mpc$ $h^{-1}]$', fontsize=27)
     ax.set_xscale('log')
     ax.set_xlim(9e-2, 30)
-    # ax.set_ylim(0, 1390)
     return style_plots(ax)
 
 
 def plot_HOD(name, log_dir):
+    """
+    Plots the Halo Occupation Distribution of four populations - All galaxies,
+    star-forming vs quenched, centrals, and satellites.
+    """
     masses, f1, f2, f3, f4 = util.get_HOD_data(name, log_dir)
     fig = plt.figure(figsize=(11,11))
     grid = Grid(fig, rect=111, nrows_ncols=(2,2), axes_pad=0, label_mode='L')
-    #p_scale = 8./7
-    #p_c = [counts * p_scale for counts in p_c]
-    #p_s = [counts * p_scale for counts in p_s]
 
     ax1, ax2, ax3, ax4 = grid
     labels = ['Total', 'SF/Quenched', 'Centrals', 'Satellites']
@@ -201,14 +201,17 @@ def plot_HOD(name, log_dir):
         ax.set_ylabel('$N(M)$')
         ax.set_xlim(5e11, 1.7e15)
         ax.set_ylim(9e-3, 3e3)
-        #ax.legend(loc=2, fontsize=20)
         ax.text(1e12, 1e2, lab, fontsize=36)
         style_plots(ax)
 
     return grid
 
-def plot_quenched_profile(r,m,ax):
-    num_red, num_blue, num_pred_red, num_pred_blue, red_err, blue_err = m
+
+def plot_quenched_profile(r, data, ax):
+    """
+    Plots the quenched fraction as a function of distance from halos
+    """
+    num_red, num_blue, num_pred_red, num_pred_blue, red_err, blue_err = data
     fq_actual = num_red/(num_red+num_blue)
     fq_pred = num_pred_red/(num_pred_red+num_pred_blue)
     ax.semilogx(r,fq_actual, color=red_col)
@@ -224,9 +227,12 @@ def plot_quenched_profile(r,m,ax):
     return style_plots(ax)
 
 
-
-def plot_radial_profile(r, m, ax):
-    num_red, num_blue, num_pred_red, num_pred_blue, red_err, blue_err = m
+def plot_radial_profile(r, data, ax):
+    """
+    Plots the distribution of red and bleu galaxies as a function from distance
+    from halos
+    """
+    num_red, num_blue, num_pred_red, num_pred_blue, red_err, blue_err = data
     ax.semilogx(r, num_red, color=red_col, label='input')
     ax.semilogx(r, num_pred_red, '--', color=red_col, label='pred', alpha=0.5)
     ax.semilogx(r, num_blue, color=blue_col, label='input')
@@ -242,24 +248,31 @@ def plot_radial_profile(r, m, ax):
 
 
 def plot_radial_profile_grid(name, log_dir, frac=False):
+    """
+    Wrapper to plot the radial profile of galaxies of halos in different mass bins
+    """
     fnames = [''.join([name, desc, '.dat']) for desc in ['_all', '_quenched', '_sf']]
-    #fnames = [''.join([name, desc, '.dat']) for desc in ['_quenched', '_sf']]
     nrows = len(fnames)
     ncols = 3
     fig = plt.figure(figsize=(17,3.5 * nrows + 1.5))
     grid = Grid(fig, rect=111, nrows_ncols=(nrows,ncols), axes_pad=0, label_mode='L')
     for row, name in enumerate(fnames):
         r, m1, m2, m3 = util.get_radial_profile_data(name, log_dir)
-        for i, m in enumerate([m1, m2, m3]):
+        for i, mass_bin in enumerate([m1, m2, m3]):
             if frac:
-                plot_quenched_profile(r, m, grid[row * 3 + i])
+                plot_quenched_profile(r, mass_bin, grid[row * 3 + i])
             else:
-                plot_radial_profile(r, m, grid[row * 3 + i])
+                plot_radial_profile(r, mass_bin, grid[row * 3 + i])
     return grid
 
 
 def plot_rwp_bins_grid(endings, log_dir, desc='msbin_4', figsize=None,
                        r_scale=True):
+    """
+    Plots correlation functions in bins of stellar mass.
+    By default, desc corresponds to data files which contain 4 bins in sSFR for
+    each bin in stellar mass.
+    """
     nrows = len(endings)
     ncols=3
     if not figsize:
@@ -290,6 +303,10 @@ def plot_rwp_bins_grid(endings, log_dir, desc='msbin_4', figsize=None,
 
 
 def annotate_rwp_msbins(grid, labels, ncols=3, fs=40, top=1430, lheight=1050):
+    """
+    Provides labels for stellar mass bins on top and also labels to describe
+    each row. Typically called after plot_rwp_bins_grid.
+    """
     c1, c2, c3 = grid[0], grid[1], grid[2]
     c1.text(1.7, top, '$9.9 < \log M_*/M_\odot < 10.1$', fontsize=25, horizontalalignment='center')
     c2.text(1.7, top, '$10.1 < \log M_*/M_\odot < 10.3$', fontsize=25, horizontalalignment='center')
@@ -301,23 +318,12 @@ def annotate_rwp_msbins(grid, labels, ncols=3, fs=40, top=1430, lheight=1050):
     return grid
 
 
-def annotate_conformity(grid, label='Text'):
-    grid[len(grid)-1].text(1.3e-1, 0.2, label, fontsize=40)
-    ml = '\mathrm{log} M_{\mathrm{vir}}'
-
-    # mass_labels = [''.join(['$',str(m-.25), '<', ml, '<', str(m+.25), '$']) for m in [12, 13, 14]]
-    mass_labels = [ '$11.75 < \log M_{\mathrm{vir}} < 12.25$',
-                    '$12.75 < \log M_{\mathrm{vir}} < 13.25$',
-                    '$13.75 < \log M_{\mathrm{vir}} < 14.25$']
-    for i, label in enumerate(mass_labels):
-        grid[i].text(.15, 1.2, label, fontsize=25)
-
-    desc_labels = [''.join([name, ' Centrals']) for name in ['Quenched', 'SF']]
-    for i, label in enumerate(desc_labels):
-        grid[3 * i].text(.109, .95, label, fontsize=30)
-
 
 def annotate_radial_profile(grid, label='Text'):
+    """
+    Provides mass and population labels for radial profile of centrals around
+    halos in different mass bins.
+    """
     grid[len(grid)-1].text(1.3e-1, .5, label, fontsize=40)
     ml = '\mathrm{log} M_{\mathrm{vir}}'
 
@@ -332,7 +338,12 @@ def annotate_radial_profile(grid, label='Text'):
     for i, label in enumerate(desc_labels):
         grid[3 * i].text(.109, 4, label, fontsize=30)
 
+
 def plot_quenched_fraction(name, log_dir, ax=None):
+    """
+    Plots the quenched fraction as a function of host halo mass for centrals
+    and satellites.
+    """
     masses, central_fq, satellite_fq, total_fq = util.get_fq_data(name, log_dir)
     dats = [central_fq, satellite_fq, total_fq]
     if ax is None:
@@ -356,6 +367,10 @@ def plot_quenched_fraction(name, log_dir, ax=None):
 
 
 def plot_quenched_fraction_vs_density(name, log_dir, ax=None):
+    """
+    Plots quenched fraction as a function of environment (\Sigma_5) in stellar
+    mass bins.
+    """
     cutoffs, d, actual_fq, pred_fq, errs = util.get_fq_vs_d_data(name, log_dir)
     if ax is None:
         fig = plt.figure(figsize=(10,10))
@@ -375,6 +390,9 @@ def plot_quenched_fraction_vs_density(name, log_dir, ax=None):
 
 
 def plot_twin_contour(ax, dist, ssfr, extent,log=True):
+    """
+    Plots contours of equal number densities on an accompanying hexbin plot.
+    """
     ax2 = ax.twiny()
     if log:
         d = np.log10(dist)
@@ -392,6 +410,10 @@ def plot_twin_contour(ax, dist, ssfr, extent,log=True):
 
 
 def hexbin_helper(ax, dist, ssfr, C, extent, cm,cnt, xscale='log'):
+    """
+    Wrapper around the call to plt.hexbin so that the minimum count required to
+    display on the plot is the same fraction of the entire catalog.
+    """
     cnt = len(dist) * .0015
     hh = ax.hexbin(dist, add_scatter(ssfr), C, xscale=xscale, mincnt=cnt,
               extent=extent, cmap=cm, alpha=0.6, gridsize=30, vmin=0, vmax=1)
@@ -400,6 +422,10 @@ def hexbin_helper(ax, dist, ssfr, C, extent, cm,cnt, xscale='log'):
 
 
 def hexbin_plots(dfs, ncols=6, cnt=20):
+    """
+    Plots heatmaps for sSFR vs environmental proxies and colors the satellite
+    fraction. (Code for figure 1)
+    """
     nrows = len(dfs)
     labels = ['$\mathrm{HW}$', 'Becker', 'Lu', 'Henriques', 'Illustris',
               '$\mathrm{EAGLE}$', '$\mathrm{MB-II}$']
