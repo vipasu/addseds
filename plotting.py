@@ -5,14 +5,12 @@ The general idea is that plotting code should be completely separate from the
 calculation code to avoid unnecessary recomputation.
 """
 import matplotlib.pyplot as plt
+from matplotlib import rc
+import matplotlib.gridspec as gridspec
 import seaborn as sns
 import util
-from matplotlib import rc
 from mpl_toolkits.axes_grid1 import Grid
 import numpy as np
-import matplotlib.gridspec as gridspec
-
-
 
 
 red_col, blue_col = sns.xkcd_rgb['reddish'], sns.xkcd_rgb['blue']
@@ -68,7 +66,7 @@ def plot_rwp(r, xi, var, ax, color):
     return style_plots(ax)
 
 
-def plot_rwp_split(name, log_dir, ax=None, r_scaled=True, lo_col=red_col,
+def plot_rwp_split(name, log_dir, ax=None, r_scaled=False, lo_col=red_col,
                    hi_col=blue_col):
     """
     Plots clustering data stored in log_dir/name. Assumes that there are two

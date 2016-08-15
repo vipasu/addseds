@@ -4,8 +4,8 @@ import util
 from sklearn.tree import DecisionTreeRegressor
 
 
-def trainRegressor(df, box_size, features, target='ssfr', pred_label='pred', model=DecisionTreeRegressor, scaled=False):
-    d_train, d_test = util.split_test_train(df, box_size)
+def trainRegressor(df, features, target='ssfr', pred_label='pred', model=DecisionTreeRegressor, scaled=False):
+    d_train, d_test = util.split_test_train(df)
     Xtrain, ytrain = util.select_features(features, d_train, target=target, scaled=scaled)
     Xtest, ytest = util.select_features(features, d_test, target=target, scaled=scaled)
     regressor = model()
