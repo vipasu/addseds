@@ -340,8 +340,8 @@ def train_and_dump_rwp(gals, features, name, proxy, box_name, box_size, red_cut=
     """
     import model
     log_dir = get_logging_dir(box_name)
-    d_train, d_test, regressor = model.trainRegressor(gals, box_size, features,
-            target, scaled=False)
+    d_train, d_test, regressor = model.trainRegressor(gals, features,
+                                                      target, scaled=False)
     cols = [target, 'pred']
     wprp_dat = c.wprp_split(d_test, red_cut, box_size, cols=cols)
     chi2 = wprp_dat[-1]

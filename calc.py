@@ -294,7 +294,7 @@ def wprp_split(gals, red_split, box_size, cols=['ssfr', 'pred'], jack_nside=3,
     if jack_nside > 1:
         r_chi2 = calculate_chi_square(results[1][0], results[2][0], r_cov)
         b_chi2 = calculate_chi_square(results[1][1], results[2][1], r_cov)
-        print "Goodness of fit for the red and blue: ", r_chi2, b_chi2
+        print "Goodness of fit for the red (lo) and blue (hi): ", r_chi2, b_chi2
     else:
         d_r = results[1][0] - results[2][0]
         d_b = results[1][1] - results[2][1]
