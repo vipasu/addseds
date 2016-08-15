@@ -1,3 +1,9 @@
+"""
+Collection of helper routines for handling data. This includes saving/loading
+clustering results, pre-processing to easily feed into sci-kit learn, and
+matching number density across catalogs match number density and quenched
+fractions.
+"""
 import os
 import cPickle as pickle
 import calc as c
@@ -10,15 +16,8 @@ from functools import reduce
 import numpy.lib.recfunctions
 
 
-def fits_to_pandas(df):
-    return pd.DataFrame.from_records(df.byteswap().newbyteorder())
-
-
-def filter_nans(arr):
-    return np.ma.masked_array(arr, np.isnan(arr))
-
-
 def mkdir_p(path):
+    """Ensures that path exists on the file system. Emulates 'mkdir -p'"""
     try:
         os.makedirs(path)
     except OSError as exc: # Python >2.5
@@ -27,7 +26,10 @@ def mkdir_p(path):
         else: raise
 
 
-def split_test_train(d, box_size, fraction=0.125):
+def split_test_train(d, fraction=0.125):
+    """ Splits d into training and test sets with _fraction_ for training.
+    amount.
+    """
     np.random.seed(1234)
     N = len(d)
     order = np.random.permutation(N)
@@ -39,11 +41,28 @@ def split_test_train(d, box_size, fraction=0.125):
 
 
 def scale_data(data):
+    """
+    Scales data to have mean 0 and variance 1.
+    Returns the scaled data and the scaler which contains the scaling
+    parameters.
+    """
     scaler = preprocessing.StandardScaler().fit(data)
     return scaler.transform(data), scaler
 
 
 def select_features(features, dataset, target='ssfr', scaled=True):
+    """
+    Prepares matrices X, y that sklearn is expecting.
+
+    Accepts:
+        features - list of attributes to include in X
+        dataset - np array with name indexing
+        target - attribute to predict
+        scaled - optional parameter to scale to make data look normal
+    Returns:
+        X - np array of size (len(dataset), len(features))
+        y - np array of size len(dataset)
+    """
     x_cols = [dataset[feature] for feature in features]
     Xtot = np.column_stack(x_cols)
     y = dataset[target]
@@ -56,55 +75,73 @@ def select_features(features, dataset, target='ssfr', scaled=True):
 
 
 def jackknife_octant_samples(gals, box_size):
+    """
+    Splits gals into octants such that host halos of galaxies in each octant
+    remain in the selection.
+
+    Returns:
+        samples - list of galaxy samples corresponding to each octant
+    """
     half_box_size = box_size/2
+
     def box_split(gals, x=0, y=0, z=0):
-        x_sel = np.where(gals.x > half_box_size) if x else np.where(gals.x < half_box_size)
-        y_sel = np.where(gals.y > half_box_size) if y else np.where(gals.y < half_box_size)
-        z_sel = np.where(gals.z > half_box_size) if z else np.where(gals.z < half_box_size)
-        sel = reduce(np.intersect1d, (x_sel[0], y_sel[0], z_sel[0]))
-        return gals.ix[sel], gals.drop(sel)
-    results = []
+        if x:
+            x_sel = np.where(gals['x'] > half_box_size)[0]
+        else:
+            x_sel = np.where(gals['x'] < half_box_size)[0]
+        if y:
+            y_sel = np.where(gals['y'] > half_box_size)[0]
+        else:
+            y_sel = np.where(gals['y'] < half_box_size)[0]
+        if z:
+            z_sel = np.where(gals['z'] > half_box_size)[0]
+        else:
+            z_sel = np.where(gals['z'] < half_box_size)[0]
+        sel = reduce(np.intersect1d, (x_sel, y_sel, z_sel))
+        return gals[sel], np.delete(gals, sel)
+
+    samples = []
     for x in [0,1]:
         for y in [0,1]:
             for z in [0,1]:
                 include, exclude = box_split(gals, x, y, z)
-                exclude_ids = set(exclude.id)
-                results.append(include[np.where(map(lambda x: x.upid not in exclude_ids, include))])
-    return results
+                exclude_ids = set(exclude['id'])
+                samples.append(include[np.where(map(lambda x: x['upid'] not in
+                                                    exclude_ids, include))])
+    return samples
 
 
 def get_logging_dir(cat_name, output_dir='output/'):
+    """Returns directory name for saving computation on a catalog"""
     out = output_dir + cat_name + '/data/'
     mkdir_p(out)
     return out
 
 
 def get_plotting_dir(cat_name, output_dir='output/'):
+    """Returns directory name for saving plots for a given catalog"""
     out = output_dir + cat_name + '/plots/'
     mkdir_p(out)
     return out
 
 
 def dump_data(data, name, log_dir):
+    """Wrapper around pickle.dump to save calculations to disk"""
     with open(log_dir + name, 'w') as f:
         pickle.dump(data, f)
 
 
 def load_data(name, log_dir):
+    """Wrapper around pickle.load to load calculations from disk"""
     with open(log_dir + name, 'r') as f:
         res = pickle.load(f)
     return res
 
 
 def get_wprp_data(name, log_dir):
-    results = load_data(name, log_dir)
-    r, ssfr, pred = results
-    a_xis, a_vars = ssfr
-    p_xis, p_vars = pred
-    return r, a_xis, a_vars, p_xis, p_vars
-
-
-def get_rwp_data(name, log_dir):
+    """ Returns r, actual and predicted 2 point clustering, error
+    bars and the associated chi squared values
+    """
     results = load_data(name, log_dir)
     r, actual, pred, errs, chi2 = results
     a_red = [actual[0], errs[0]]
@@ -115,35 +152,61 @@ def get_rwp_data(name, log_dir):
 
 
 def get_wprp_bin_data(name, log_dir):
+    """
+    Returns clustering data about different bins in sSFR.
+    """
     results = load_data(name, log_dir)
     r, ssfr, pred, errs, chi2 = results
     return r, ssfr, pred, errs
 
 
 def get_HOD_data(name, log_dir):
+    """
+    Returns the halo occupation distribution of f1-4, which correspond to
+    the full HOD, red/blue HOD, red/blue centrals HOD, and red/blue
+    satellite HOD
+    """
     results = load_data(name, log_dir)
     masses, f1, f2, f3, f4 = results
     return masses, f1, f2, f3, f4
 
 
 def get_radial_profile_data(name, log_dir):
+    """
+    Returns the radial profile of galaxies around halos where m1-3
+    correspond to different mass bins for the halos
+    """
     results = load_data(name, log_dir)
     r, m1, m2, m3 = results
     return r, m1, m2, m3
 
 
 def get_fq_data(name, log_dir):
+    """
+    Returns the quenched fraction of galaxies, centrals, and satellites as a
+    function of host halo mass m
+    """
     results = load_data(name, log_dir)
     m, cents, sats, totals = results
     return m, cents, sats, totals
 
 
 def get_fq_vs_d_data(name, log_dir):
+    """
+    Returns the quenched fraction as a function of density
+    Cutoffs refers to stellar mass bins
+    """
     results = load_data(name, log_dir)
     cutoffs, d, actual, pred, err = results
     return cutoffs, d, actual, pred, err
 
+
 def load_all_cats(prefix='./'):
+    """
+    Serves as a cache for metadata of the catalogs used in analysis. Stores
+    box size, red cut for matching quenched fraction, and directories where
+    calculations are stored.
+    """
     dats = defaultdict(dict)
     names = ['HW', 'Becker', 'Lu', 'Henriques', 'EAGLE', 'Illustris', 'MB-II']
     dirs = [prefix + 'data/' + name + '/' for name in names]
@@ -155,14 +218,24 @@ def load_all_cats(prefix='./'):
         dats[name]['red_cut'] = red_cut
     return dats
 
+
+
 def load_dat(cats, name):
-    # cats[name]['dat'] = pd.read_csv(cats[name]['dir'] + 'galaxies_cut.csv')
+    """
+    Procedure to actually catalogs from disk once the metadata is loaded
+    Accepts:
+        cats - dict of metadata
+        name - name of catalog to load
+    """
     cats[name]['dat'] = np.load(cats[name]['dir'] + 'halos.npy')
 
     return
 
 
 def get_catalog(name, dir_prefix='./'):
+    """
+    Returns a galaxy catalog and metadata referenced by name
+    """
     print "Loading cat info..."
     cats = load_all_cats(dir_prefix)
     print "loading dat..."
@@ -173,7 +246,12 @@ def get_catalog(name, dir_prefix='./'):
     del cats
     return cat
 
+
 def match_mstar_cut(gals, box_size, msmin, msmax):
+    """
+    Given stellar mass limits in HW, calculate the corresponding stellar
+    mass limits in a box of size box_size with gals inside.
+    """
     hwcat = get_catalog('HW')
     hwdf = hwcat['dat']
 
@@ -192,7 +270,10 @@ def match_mstar_cut(gals, box_size, msmin, msmax):
 
 
 def match_number_density(dats, nd=None, mstar=None):
-    # TODO: some sort of binning to accept mstar and translate to number density
+    """
+    Cuts catalogs at a stellar mass such that the number density matches that
+    found in Hearin and Watson
+    """
 
     new_dats = defaultdict(dict)
     if nd is None:
@@ -219,7 +300,44 @@ def match_number_density(dats, nd=None, mstar=None):
         new_dats[name] = new_cat
     return new_dats
 
+
+def match_quenched_fraction(dat, f_q=0.477807721657):
+    """
+    Performs a binary search on the sSFR value that generates a quenched
+    fraction that matches f_q. The default value corresponds to the one found
+    in HW.
+    """
+    hwdat = get_catalog('HW')['dat']
+    n = len(dat)
+    left, right = -13.0, -9.0
+    red_cut = (left + right)/2
+    quenched_fraction = 1.0 * len(dat[dat.ssfr < red_cut])/n
+    tol = 1e-7
+    while (right-left) > tol:
+        #print quenched_fraction
+        if quenched_fraction < f_q:
+            left = red_cut
+        else:
+            right = red_cut
+        red_cut = (left + right)/2
+        quenched_fraction = 1.0 * len(dat[dat.ssfr < red_cut])/n
+        #print left, right
+    return red_cut
+
+
 def train_and_dump_rwp(gals, features, name, proxy, box_name, box_size, red_cut=-11, logging=True, target='ssfr'):
+    """
+    Trains and predicts clustering of _gals_ based on _features_.
+
+    Params:
+        gals - galaxies to calculate clustering of
+        features - list of proxies to train on
+        name - name of file to save output to
+        proxy - description of features used to add to statistics
+        box_name - name of catalog (used to save data to correct directory)
+        box_size - size of catalog
+        target - optionally specify what to predict (defaults to sSFR)
+    """
     import model
     log_dir = get_logging_dir(box_name)
     d_train, d_test, regressor = model.trainRegressor(gals, box_size, features,
@@ -234,6 +352,20 @@ def train_and_dump_rwp(gals, features, name, proxy, box_name, box_size, red_cut=
 
 
 def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num_splits=3, red_cut=-11, logging=True, target='ssfr'):
+    """
+    Trains and predicts clustering of _gals_ based on _features_ in stellar
+    mass bins.
+
+    Params:
+        gals - galaxies to calculate clustering of
+        features - list of proxies to train on
+        name - name of file to save output to
+        proxy - description of features used to add to statistics
+        box_name - name of catalog (used to save data to correct directory)
+        box_size - size of catalog
+        num_splits - determines how many bins of sSFR to observe clustering in
+        target - optionally specify what to predict (defaults to sSFR)
+    """
     import model
     log_dir = get_logging_dir(box_name)
     mstar_cuts = [10.0, 10.2, 10.6]
@@ -264,7 +396,11 @@ def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num
                 add_statistic(box_name, sname, proxy, chi2[j])
         dump_data(res, str(i) + '_msbin_' + str(num_splits+1) + '_' + name, log_dir)
 
-def load_feature_list(proxy, dat, cat):
+
+def load_feature_list(proxy):
+    """
+    Turns a proxy name into a list of features to load
+    """
     proxy_cache = {
         'dm5e12': ['d5e12', 'm5e12'],
         'dmc5e12': ['d5e12', 'm5e12', 'c5e12'],
@@ -279,6 +415,13 @@ def load_feature_list(proxy, dat, cat):
 
 
 def load_proxies(gals, data_dir, proxy_names, dat_names):
+    """
+    Loads the data from dat_names as columns in gals titled proxy_names
+
+    Example usage:
+        gals = util.load_proxies(gals, 'data/HW/', ['s5'], ['s5'])
+    That loads 'data/HW/s5.npy' into gals so it can be accessed as gals['s5']
+    """
     for proxy, name in zip(proxy_names, dat_names):
         if proxy not in gals.dtype.names:
             vals = np.load(data_dir + name + '.npy')
@@ -291,6 +434,9 @@ def load_proxies(gals, data_dir, proxy_names, dat_names):
 
 
 def label_from_proxy_name(name):
+    """
+    Serves as a cache from shorthand names for proxies to Latex versions
+    """
     name_label_dict = {
         'rhill':'R$_{\mathrm{hill}}$',
         'rhillmass':'R$_{\mathrm{hill_{\mathrm{mass}}}}$',
@@ -315,27 +461,13 @@ def label_from_proxy_name(name):
     return None
 
 
-
-def match_quenched_fraction(dat, f_q=0.477807721657):
-    hwdat = get_catalog('HW')['dat']
-    n = len(dat)
-    left, right = -13.0, -9.0
-    red_cut = (left + right)/2
-    quenched_fraction = 1.0 * len(dat[dat.ssfr < red_cut])/n
-    tol = 1e-7
-    while (right-left) > tol:
-        #print quenched_fraction
-        if quenched_fraction < f_q:
-            left = red_cut
-        else:
-            right = red_cut
-        red_cut = (left + right)/2
-        quenched_fraction = 1.0 * len(dat[dat.ssfr < red_cut])/n
-        #print left, right
-    return red_cut
-
-
 def add_statistic(cat_name, stat_name, proxy_name, value):
+    """
+    Saves the result of a statistic generated by proxy_name.
+    Examples include the chi2 value of two point clustering for quenched
+    galaxies in Hearin and Watson.
+        util.add_statistic('HW', 'chi2_red', 's5', 2.0)
+    """
     data_dir = 'data/' + cat_name + '/'
     try:
         stat_dict = load_data('statistics.pckl', data_dir)
@@ -348,12 +480,12 @@ def add_statistic(cat_name, stat_name, proxy_name, value):
 
 
 def recarray_from_npz(fname):
+    """Small conversion function from npz archive to a record array """
     dat = np.load(fname)
     return np.recarray({x : dat[x] for x in dat.files})
 
 
 def add_column(arr, name, vals):
+    """Appends a column to arr so it can be accessed as arr['name']"""
     return numpy.lib.recfunctions.append_fields(arr, name, vals, usemask=False,
             asrecarray=True)
-
-

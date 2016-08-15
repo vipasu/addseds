@@ -85,7 +85,7 @@ def plot_rwp(r, xi, var, ax, color):
 
 
 def plot_rwp_split_truth(name, log_dir, ax=None, r_scaled=True):
-    r, a_red, a_blue, p_red, p_blue, chi2 = util.get_rwp_data(name, log_dir)
+    r, a_red, a_blue, p_red, p_blue, chi2 = util.get_wprp_data(name, log_dir)
     if ax is None:
         fig = plt.figure(figsize=(12, 12))
         ax = plt.gca()
@@ -108,8 +108,8 @@ def plot_rwp_split_truth(name, log_dir, ax=None, r_scaled=True):
 def plot_rwp_split(name, log_dir, ax=None, r_scaled=True, lo_col=red_col,
                    hi_col=blue_col):
     ### Load the data
-    #r, a_red, a_blue, p_red, p_blue = util.get_rwp_data(name, log_dir)
-    r, a_red, a_blue, p_red, p_blue, chi2 = util.get_rwp_data(name, log_dir)
+    #r, a_red, a_blue, p_red, p_blue = util.get_wprp_data(name, log_dir)
+    r, a_red, a_blue, p_red, p_blue, chi2 = util.get_wprp_data(name, log_dir)
     if ax is None:
         plt.figure(figsize=(12, 12))
         ax = plt.gca()
