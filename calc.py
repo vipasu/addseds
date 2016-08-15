@@ -406,7 +406,45 @@ def get_all_neighbors(pos, center, box_size):
     with fast3tree(pos) as tree:
         tree.set_boundaries(0.0, box_size)
         rmax = box_size/2 - 1e-6
-        return tree.query_radius(center, rmax, periodic=box_size, output='both')
+        return tree.query_radius(center, rmax, periodic=box_size,
+                                 output='both')
+
+
+def calculate_red_density_score(gals, box_size, r_max=1, red_cut=-11):
+    """Returns count of red neighbors within r_max of center.
+
+    Future versions will have a weighting score for neighbor galaxies.
+    This could be a inverse distance weighting or selection of only red
+    neighbors.
+
+    Accepts:
+        gals - catalog containing galaxy positions and colors
+        box_size - periodicity of objects in pos
+        r_max - radius around center whitn which to grab neighbors
+    Returns:
+        counts - array of red neighbor counts for each galaxy
+        counts_predicted - array of red neighbor counts for each galaxy
+    """
+    N = len(gals)
+    pos = make_pos(gals)
+    actual_red_neighbors = np.zeros(N)
+    pred_red_neighbors = np.zeros(N)
+
+    with fast3tree(pos) as tree:
+        tree.set_boundaries(0.0, box_size)
+        for i in xrange(N):
+            if i % 10000 == 0:
+                print i, N
+            indices = tree.query_radius(pos[i], r_max, periodic=box_size,
+                                        output='index')
+            neighbor_colors = gals['ssfr'][indices]
+            new_neighbor_colors = gals['pred'][indices]
+            actual_red_neighbors[i] = len(np.where(neighbor_colors <
+                                                   red_cut)[0])
+            pred_red_neighbors[i] = len(np.where(new_neighbor_colors <
+                                                 red_cut)[0])
+    return actual_red_neighbors, pred_red_neighbors
+
 
 
 def calculate_r_hill(galaxies, hosts, box_size, projected=False):
