@@ -428,6 +428,10 @@ def calc_mcf(mark, pos, rbins, box_size):
 
 def jackknife_mcf(gals, x='ssfr', y='mstar', box_size=250.0,
                   mbins=np.linspace(9.8, 12.6, 11)):
+    """
+    Wrapper around the marked correlation function code to handle jackknifing
+    over different octants.
+    """
     r, rbins = make_r_scale(rmin=.1, rmax=10, Nrp=10)
     octants = util.jackknife_octant_samples(gals, box_size)
     actual_mcfs, pred_mcfs = [], []
@@ -444,9 +448,28 @@ def jackknife_mcf(gals, x='ssfr', y='mstar', box_size=250.0,
     actual_mcfs, pred_mcfs = map(np.array, [actual_mcfs, pred_mcfs])
     actual = np.mean(actual_mcfs, axis=0)
     pred = np.mean(pred_mcfs, axis=0)
-    error = np.sqrt(np.diag(np.cov(actual_mcfs - pred_mcfs, rowvar=0, bias=1)))\
-            * (n_jack - 1)
+    error = np.sqrt(np.diag(np.cov(actual_mcfs - pred_mcfs, rowvar=0,
+                                   bias=1))) * (n_jack - 1)
     return r, actual, pred, error
+
+
+def shuffle_mcf(gals, x='ssfr', y='mstar', box_size=250.0,
+                mbins=np.linspace(9.8, 12.6, 11)):
+    """
+    Calculates the marked correlation function on galaxies when the mark is
+    shuffled. Sets the baseline for random when comparing the signal of MCF.
+    """
+    r, rbins = make_r_scale(rmin=.1, rmax=10, Nrp=10)
+    mark = assign_mark_in_bins(gals[x], gals[y], mbins)
+    num_trials = 100
+    mcfs = []
+    for i in xrange(num_trials):
+        np.random.shuffle(mark)
+        mcfs.append(mark, gals[list('xyz')].view((float, 3)), rbins, box_size)
+    mcfs = np.array(mcfs)
+    mean = np.mean(mcfs, axis=0)
+    error = np.sqrt(np.diag(np.cov(mcfs, rowvar=0, bias=1)))
+    return mean, error
 
 
 def find_min_rhill(rs, masses, m_sec):
