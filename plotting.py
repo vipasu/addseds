@@ -11,6 +11,7 @@ import seaborn as sns
 import util
 from mpl_toolkits.axes_grid1 import Grid
 import numpy as np
+import colormaps as cmaps
 
 
 red_col, blue_col = sns.xkcd_rgb['reddish'], sns.xkcd_rgb['blue']
@@ -407,6 +408,10 @@ def plot_twin_contour(ax, dist, ssfr, extent,log=True):
     ax2.set_xticks([])
 
 
+def add_scatter(ssfr):
+    return map(lambda x: -12 + np.random.normal(scale=.2) if x == -12 else x, ssfr)
+
+
 def hexbin_helper(ax, dist, ssfr, C, extent, cm,cnt, xscale='log'):
     """
     Wrapper around the call to plt.hexbin so that the minimum count required to
@@ -429,35 +434,36 @@ def hexbin_plots(dfs, ncols=6, cnt=20):
               '$\mathrm{EAGLE}$', '$\mathrm{MB-II}$']
     fig = plt.figure(figsize=(17.5,3.5 * nrows + 1))
     gs = gridspec.GridSpec(nrows, ncols+1, width_ratios =[ 1] * ncols + [.15])
+    plt.register_cmap(name='viridis', cmap=cmaps.viridis)
     gs.update(wspace=0, hspace=0)
     for i, df  in enumerate(dfs):
         print i
         extent = [-2.95, 2.3, -8.5, -13.5]
         mstar_extent = [8.7, 12.5, -8.5, -13.5]
         cm = plt.get_cmap('viridis')
-        central = df.central.values
+        central = df['central']
 
         ax1 = fig.add_subplot(gs[i,0])
         ax_list = [ax1] + [fig.add_subplot(gs[i,j]) for j in xrange(1,ncols)]
         print len(df.mstar), len(df.ssfr), len(central)
 
-        hexbin_helper(ax_list[0], 10**df.mstar, df.ssfr, central, mstar_extent, cm, cnt)
-        plot_twin_contour(ax_list[0], 10**df.mstar, df.ssfr, mstar_extent)
+        hexbin_helper(ax_list[0], 10**df['mstar'], df['ssfr'], central, mstar_extent, cm, cnt)
+        plot_twin_contour(ax_list[0], 10**df['mstar'], df['ssfr'], mstar_extent)
 
-        hh = hexbin_helper(ax_list[1], df.rhill, df.ssfr,central, extent, cm, cnt)
-        plot_twin_contour(ax_list[1], df.rhill, df.ssfr, extent)
+        hh = hexbin_helper(ax_list[1], df['rhill'], df['ssfr'],central, extent, cm, cnt)
+        plot_twin_contour(ax_list[1], df['rhill'], df['ssfr'], extent)
 
-        hexbin_helper(ax_list[2], df.rhillmass, df.ssfr,central, extent, cm, cnt)
-        plot_twin_contour(ax_list[2], df.rhillmass, df.ssfr, extent)
+        hexbin_helper(ax_list[2], df['rhillmass'], df['ssfr'],central, extent, cm, cnt)
+        plot_twin_contour(ax_list[2], df['rhillmass'], df['ssfr'], extent)
 
-        hexbin_helper(ax_list[3], df.d5e12, df.ssfr,central, extent, cm, cnt)
-        plot_twin_contour(ax_list[3], df.d5e12, df.ssfr, extent)
+        hexbin_helper(ax_list[3], df['d5e12'], df['ssfr'],central, extent, cm, cnt)
+        plot_twin_contour(ax_list[3], df['d5e12'], df['ssfr'], extent)
 
-        hexbin_helper(ax_list[4], 10**df.d5, df.ssfr,central, extent, cm,cnt)
-        plot_twin_contour(ax_list[4], 10**df.d5, df.ssfr, extent)
+        hexbin_helper(ax_list[4], 10**df['d5'], df['ssfr'],central, extent, cm,cnt)
+        plot_twin_contour(ax_list[4], 10**df['d5'], df['ssfr'], extent)
 
-        hexbin_helper(ax_list[5], 10**df.s5, df.ssfr,central, extent, cm,cnt)
-        plot_twin_contour(ax_list[5], 10**df.s5, df.ssfr, extent)
+        hexbin_helper(ax_list[5], 10**df['s5'], df['ssfr'],central, extent, cm,cnt)
+        plot_twin_contour(ax_list[5], 10**df['s5'], df['ssfr'], extent)
 
         ax_list[-1].text(5e-3,-9.2,labels[i], fontsize=25)
 
@@ -475,7 +481,7 @@ def hexbin_plots(dfs, ncols=6, cnt=20):
                 for label in ax.xaxis.get_ticklabels()[::2]:
                     label.set_visible(False)
         for ax in ax_list:
-            p.style_plots(ax)
+            style_plots(ax)
 
     ds = ['$M_*/M_\odot$'] + [util.label_from_proxy_name(p) for p in ['rhill', 'rhillmass', 'd5e12', 'd5', 's5']]
     for i, ax in enumerate(ax_list):
