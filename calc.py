@@ -426,6 +426,27 @@ def calc_mcf(mark, pos, rbins, box_size):
     return np.array(mcf)
 
 
+def jackknife_mcf(gals, x='ssfr', y=['mstar'], box_size=250.0,
+                  mbins=np.linspace(9.8, 12.6, 11)):
+    octants = util.jackknife_octant_samples(gals, box_size)
+    actual_mcfs, pred_mcfs = [], []
+    for octant in octants:
+        mark_x = assign_mark_in_bins(octant[x], octant[y], mbins)
+        mark_pred = assign_mark_in_bins(octant['pred'], octant[y], mbins)
+        r, rbins = make_r_scale(rmin=.1, rmax=10, Nrp=10)
+        mcf = calc_mcf(mark_x, octant[list('xyz')].view((float, 3)), rbins,
+                       box_size)
+        mcf_pred = calc_mcf(mark_pred, octant[list('xyz')].view((float, 3)),
+                            rbins, box_size)
+        actual_mcfs.append(mcf)
+        pred_mcfs.append(mcf_pred)
+    actual_mcfs, pred_mcfs = map(np.array, [actual_mcfs, pred_mcfs])
+    actual = np.mean(actual_mcfs)
+    pred = np.mean(pred_mcfs)
+    error = np.sqrt(np.diag(np.cov(actual_mcfs - pred_mcfs)))
+    return actual, pred, error
+
+
 def find_min_rhill(rs, masses, m_sec):
     """ Given a list of halos, calculates the minimal induced rhill value.
     Additionally returns the distance to and mass of that halo.
