@@ -97,8 +97,8 @@ def jackknife_octant_samples(gals, box_size):
             z_sel = np.where(gals['z'] > half_box_size)[0]
         else:
             z_sel = np.where(gals['z'] < half_box_size)[0]
-        sel = reduce(np.intersect1d, (x_sel, y_sel, z_sel))
-        return gals[sel], np.delete(gals, sel)
+        remove = reduce(np.intersect1d, (x_sel, y_sel, z_sel))
+        return np.delete(gals, sel), gals[remove]
 
     samples = []
     for x in [0, 1]:
@@ -444,6 +444,7 @@ def label_from_proxy_name(name):
         'dmc5e12':'(D,M,c)$_{\mathrm{mass}}$',
         'sn5e12':'$(\Sigma,N_{\mathrm{gal}})_{\mathrm{mass}}$',
         'd5e12':'D$_{\mathrm{mass}}$',
+        'm5e12':'M$_{\mathrm{mass}}$',
         'd1':'D$_{1}$',
         'd2':'D$_{2}$',
         'd5':'D$_{5}$',
