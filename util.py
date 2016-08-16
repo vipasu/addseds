@@ -76,8 +76,8 @@ def select_features(features, dataset, target='ssfr', scaled=True):
 
 def jackknife_octant_samples(gals, box_size):
     """
-    Splits gals into octants such that host halos of galaxies in each octant
-    remain in the selection.
+    Splits gals into octants such that galaxies whose host halos are in a
+    different octant get removed from the selection.
 
     Returns:
         samples - list of galaxy samples corresponding to each octant
@@ -101,9 +101,9 @@ def jackknife_octant_samples(gals, box_size):
         return gals[sel], np.delete(gals, sel)
 
     samples = []
-    for x in [0,1]:
-        for y in [0,1]:
-            for z in [0,1]:
+    for x in [0, 1]:
+        for y in [0, 1]:
+            for z in [0, 1]:
                 include, exclude = box_split(gals, x, y, z)
                 exclude_ids = set(exclude['id'])
                 samples.append(include[np.where(map(lambda x: x['upid'] not in
