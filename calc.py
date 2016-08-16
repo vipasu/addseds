@@ -10,6 +10,7 @@ import numpy as np
 from numpy.linalg import pinv, inv
 from fast3tree import fast3tree
 import util
+from scipy.stats import rankdata
 
 h = 0.7
 zmax = 40.0
@@ -368,7 +369,6 @@ def assign_mark_in_bins(y, x, bins, sorter=None):
     """
     mark on y, in bins of x
     """
-    from scipy.stats import rankdata
     assert len(y) == len(x)
     if sorter is None:
         sorter = x.argsort()
@@ -426,25 +426,27 @@ def calc_mcf(mark, pos, rbins, box_size):
     return np.array(mcf)
 
 
-def jackknife_mcf(gals, x='ssfr', y=['mstar'], box_size=250.0,
+def jackknife_mcf(gals, x='ssfr', y='mstar', box_size=250.0,
                   mbins=np.linspace(9.8, 12.6, 11)):
+    r, rbins = make_r_scale(rmin=.1, rmax=10, Nrp=10)
     octants = util.jackknife_octant_samples(gals, box_size)
     actual_mcfs, pred_mcfs = [], []
     for octant in octants:
         mark_x = assign_mark_in_bins(octant[x], octant[y], mbins)
         mark_pred = assign_mark_in_bins(octant['pred'], octant[y], mbins)
-        r, rbins = make_r_scale(rmin=.1, rmax=10, Nrp=10)
         mcf = calc_mcf(mark_x, octant[list('xyz')].view((float, 3)), rbins,
                        box_size)
         mcf_pred = calc_mcf(mark_pred, octant[list('xyz')].view((float, 3)),
                             rbins, box_size)
         actual_mcfs.append(mcf)
         pred_mcfs.append(mcf_pred)
+    n_jack = len(octants)
     actual_mcfs, pred_mcfs = map(np.array, [actual_mcfs, pred_mcfs])
-    actual = np.mean(actual_mcfs)
-    pred = np.mean(pred_mcfs)
-    error = np.sqrt(np.diag(np.cov(actual_mcfs - pred_mcfs)))
-    return actual, pred, error
+    actual = np.mean(actual_mcfs, axis=0)
+    pred = np.mean(pred_mcfs, axis=0)
+    error = np.sqrt(np.diag(np.cov(actual_mcfs - pred_mcfs, rowvar=0, bias=1)))\
+            * (n_jack - 1)
+    return r, actual, pred, error
 
 
 def find_min_rhill(rs, masses, m_sec):
