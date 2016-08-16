@@ -461,15 +461,16 @@ def shuffle_mcf(gals, x='ssfr', y='mstar', box_size=250.0,
     """
     r, rbins = make_r_scale(rmin=.1, rmax=10, Nrp=10)
     mark = assign_mark_in_bins(gals[x], gals[y], mbins)
-    num_trials = 100
+    num_trials = 50
     mcfs = []
     for i in xrange(num_trials):
+        print i, num_trials
         np.random.shuffle(mark)
-        mcfs.append(mark, gals[list('xyz')].view((float, 3)), rbins, box_size)
+        mcfs.append(calc_mcf(mark, gals[list('xyz')].view((float, 3)), rbins, box_size))
     mcfs = np.array(mcfs)
     mean = np.mean(mcfs, axis=0)
     error = np.sqrt(np.diag(np.cov(mcfs, rowvar=0, bias=1)))
-    return mean, error
+    return r, mean, error
 
 
 def find_min_rhill(rs, masses, m_sec):
@@ -518,25 +519,42 @@ def get_all_neighbors(pos, center, box_size):
                                  output='both')
 
 
-def calculate_red_density_score(gals, box_size, r_max=1, red_cut=-11):
-    """Returns count of red neighbors within r_max of center.
+def calculate_density_score(gals, box_size, r_max=1):
+    """
+    Calculates the number of neighbors within r_max of each galaxy.
+    """
+    N = len(gals)
+    pos = make_pos(gals)
+    neighbors = np.zeros(N)
+
+    with fast3tree(pos) as tree:
+        tree.set_boundaries(0.0, box_size)
+        for i in xrange(N):
+            if i % 10000 == 0:
+                print i, N
+            count = tree.query_radius(pos[i], r_max, periodic=box_size,
+                                        output='count')
+            neighbors[i] = count
+    return neighbors
+
+
+
+def calculate_red_density_score(gals, box_size, r_max=1, red_cut=-11, color='ssfr'):
+    """Returns count of red neighbors within r_max of each galaxy.
 
     Future versions will have a weighting score for neighbor galaxies.
-    This could be a inverse distance weighting or selection of only red
-    neighbors.
+    This could be a inverse distance weighting or one that incorporates color.
 
     Accepts:
         gals - catalog containing galaxy positions and colors
         box_size - periodicity of objects in pos
         r_max - radius around center whitn which to grab neighbors
     Returns:
-        counts - array of red neighbor counts for each galaxy
-        counts_predicted - array of red neighbor counts for each galaxy
+        red_neighbors - array of red neighbor counts for each galaxy
     """
     N = len(gals)
     pos = make_pos(gals)
-    actual_red_neighbors = np.zeros(N)
-    pred_red_neighbors = np.zeros(N)
+    red_neighbors = np.zeros(N)
 
     with fast3tree(pos) as tree:
         tree.set_boundaries(0.0, box_size)
@@ -545,13 +563,9 @@ def calculate_red_density_score(gals, box_size, r_max=1, red_cut=-11):
                 print i, N
             indices = tree.query_radius(pos[i], r_max, periodic=box_size,
                                         output='index')
-            neighbor_colors = gals['ssfr'][indices]
-            new_neighbor_colors = gals['pred'][indices]
-            actual_red_neighbors[i] = len(np.where(neighbor_colors <
-                                                   red_cut)[0])
-            pred_red_neighbors[i] = len(np.where(new_neighbor_colors <
-                                                 red_cut)[0])
-    return actual_red_neighbors, pred_red_neighbors
+            neighbor_colors = gals[color][indices]
+            red_neighbors[i] = len(np.where(neighbor_colors < red_cut)[0])
+    return red_neighbors
 
 
 def calculate_r_hill(galaxies, hosts, box_size, projected=False):
