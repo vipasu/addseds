@@ -364,6 +364,68 @@ def wprp_bins(gals, num_splits, box_size, jack_nside=3, rpmin=0.1, rpmax=20.0, N
     return results  # r, ssfr, pred, errs, chi2s
 
 
+def assign_mark_in_bins(y, x, bins, sorter=None):
+    """
+    mark on y, in bins of x
+    """
+    from scipy.stats import rankdata
+    assert len(y) == len(x)
+    if sorter is None:
+        sorter = x.argsort()
+    k = np.searchsorted(x, bins, sorter=sorter)
+    print k
+    assert k[0] == 0 and k[-1] == len(x)
+    mark = np.empty(len(x), float)
+    for i, j in zip(k[:-1], k[1:]):
+        assert j > i
+        sel = sorter[i:j]
+        mark[sel] = rankdata(y[sel])/float(j-i)
+    return mark
+
+
+def calc_mcf(mark, pos, rbins, box_size):
+    """
+    mark : 1d ndarray, length N
+    pos : 2d ndarray, shape (N, 3)
+    rbins : 1d ndarray
+    box_size : float
+    """
+    pairs = []
+    rmax = rbins[-1]
+    with fast3tree(pos) as tree:
+        tree.set_boundaries(0, box_size)
+        for i, c in enumerate(pos):
+            j = tree.query_radius(c, rmax, True)
+            j = j[j>i]
+            pairs.extend((i, _j) for _j in j)
+    pairs = np.array(pairs)
+
+    d = pos[pairs[:,0]] - pos[pairs[:,1]]
+    d[d >  (0.5*box_size)] -= box_size
+    d[d < (-0.5*box_size)] += box_size
+    d *= d
+    d = np.sqrt(d.sum(axis=-1))
+    s = d.argsort()
+    k = np.searchsorted(d, rbins, sorter=s)
+    del d
+
+    # make mark_rank to span -1 to +1
+    mark_rank = rankdata(mark)
+    mark_rank -= 1.0
+    mark_rank *= (2.0/float(len(mark)-1))
+    mark_rank -= 1.0
+
+    mcf = []
+    for i, j in zip(k[:-1], k[1:]):
+        if j==i:
+            mcf.append(np.nan)
+        else:
+            ii, jj = pairs[s[i:j]].T
+            mcf.append((mark_rank[ii]*mark_rank[jj]).mean())
+
+    return np.array(mcf)
+
+
 def find_min_rhill(rs, masses, m_sec):
     """ Given a list of halos, calculates the minimal induced rhill value.
     Additionally returns the distance to and mass of that halo.
@@ -444,7 +506,6 @@ def calculate_red_density_score(gals, box_size, r_max=1, red_cut=-11):
             pred_red_neighbors[i] = len(np.where(new_neighbor_colors <
                                                  red_cut)[0])
     return actual_red_neighbors, pred_red_neighbors
-
 
 
 def calculate_r_hill(galaxies, hosts, box_size, projected=False):
