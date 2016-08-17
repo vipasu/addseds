@@ -145,6 +145,20 @@ def get_distance(center, pos, box_size=-1):
     return d
 
 
+def get_cylinder_distance(center, pos, box_size=-1, zmax=40.0):
+    """
+    Computes distance between points in xy plane. If the z distance is greater
+    than zmax, then box_size is reported as the distance.
+    """
+    dx = get_distance(center[0], pos[:, 0], box_size=box_size)
+    dy = get_distance(center[1], pos[:, 1], box_size=box_size)
+    dz = get_distance(center[2], pos[:, 2], box_size=box_size)
+    r2 = dx*dx + dy*dy
+    outside = np.where(np.abs(dz) > zmax)
+    r2[outside] = box_size
+    return np.sqrt(r2)
+
+
 def get_3d_distance(center, pos, box_size=-1):
     """
     Computes distance between points in 3D.
@@ -518,6 +532,29 @@ def get_all_neighbors(pos, center, box_size):
         return tree.query_radius(center, rmax, periodic=box_size,
                                  output='both')
 
+def calculate_clustering_score(gals, box_size, pos_tags=['x','y','zp'], rbins=[0,1,10]):
+    """
+    Counts the number of pairs in different radii bins
+    """
+    N = len(gals)
+    pos = make_pos(gals, pos_tags)
+    neighbors = np.zeros((N, len(rbins) - 1))
+    r_max = rbins[-1]
+
+    with fast3tree(pos) as tree:
+        tree.set_boundaries(0.0, box_size)
+        for i in xrange(N):
+            if i % 10000 == 0:
+                print i, N
+            idxs, loc = tree.query_radius(pos[i], r_max, periodic=box_size,
+                                          output='both')
+            distances = get_cylinder_distance(pos[i], loc, box_size)
+            for j in xrange(len(rbins) - 1):
+                binned_neighbors = len(np.where((distances > rbins[j]) &
+                                                (distances < rbins[j+1]))[0])
+                neighbors[i][j] = binned_neighbors
+    return neighbors
+
 
 def calculate_density_score(gals, box_size, r_max=1):
     """
@@ -536,7 +573,6 @@ def calculate_density_score(gals, box_size, r_max=1):
                                         output='count')
             neighbors[i] = count
     return neighbors
-
 
 
 def calculate_red_density_score(gals, box_size, r_max=1, red_cut=-11, color='ssfr'):
