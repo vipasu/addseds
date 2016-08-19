@@ -790,6 +790,44 @@ def HOD_wrapper(df, test_gals, box_size):
     return results
 
 
+def conformity(gals, msmin, msmax, red_cut=-11, col='ssfr'):
+    """
+    Calculates quenched fraction of satellites of quenched/star-forming centrals.
+    """
+    centrals = gals[gals['upid'] == -1]
+    centrals = centrals[np.where((centrals['mstar'] > msmin) &
+                                 (centrals['mstar'] < msmax))[0]]
+    red_c = centrals[centrals[col] < red_cut]
+    blue_c = centrals[centrals[col] > red_cut]
+
+    def quenched_satellite_fraction(cents):
+        ids = set(cents['id'])
+        sats = gals[gals['upid'] in ids]
+        ssfrs = sats[col]
+        f_q = np.mean(ssfrs < red_cut)
+        return f_q
+
+    return quenched_satellite_fraction(red_c), \
+        quenched_satellite_fraction(blue_c)
+
+
+def conformity_wrapper(gals, box_size, msmin, msmax, red_cut=-11,
+                       cols=['ssfr', 'pred']):
+    octants = util.jackknife_octant_samples(gals, box_size)
+    results = []
+    predictions = []
+    for sample in octants:
+        results.append(conformity(sample, msmin, msmax, red_cut, cols[0]))
+        predictions.append(conformity(sample, msmin, msmax, red_cut, cols[1]))
+    red_fqs, blue_fqs = zip(*results)
+    red_fqs_pred, blue_fqs_pred = zip(*predictions)
+    actual = np.mean(red_fqs), np.mean(blue_fqs)
+    pred = np.mean(red_fqs_pred), np.mean(blue_fqs_pred)
+    actual_err = np.std(red_fqs), np.std(blue_fqs)
+    pred_err = np.std(red_fqs_pred), np.std(blue_fqs_pred)
+    return actual, pred, actual_err, pred_err
+
+
 def radial_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
     """ Calculates the distribution of gals around hosts as a function of r
     """
