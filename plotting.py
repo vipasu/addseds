@@ -301,15 +301,15 @@ def plot_rwp_bins_grid(endings, log_dir, desc='msbin_4', figsize=None,
     return grid
 
 
-def annotate_rwp_msbins(grid, labels, ncols=3, fs=40, top=1430, lheight=1050):
+def annotate_rwp_msbins(grid, labels, ncols=3, fs=40, mid=1.7, top=1430, lheight=1050):
     """
     Provides labels for stellar mass bins on top and also labels to describe
     each row. Typically called after plot_rwp_bins_grid.
     """
     c1, c2, c3 = grid[0], grid[1], grid[2]
-    c1.text(1.7, top, '$9.9 < \log M_*/M_\odot < 10.1$', fontsize=25, horizontalalignment='center')
-    c2.text(1.7, top, '$10.1 < \log M_*/M_\odot < 10.3$', fontsize=25, horizontalalignment='center')
-    c3.text(1.7, top, '$10.5 < \log M_*/M_\odot < 10.7$', fontsize=25, horizontalalignment='center')
+    c1.text(mid, top, '$9.9 < \log M_*/M_\odot < 10.1$', fontsize=25, horizontalalignment='center')
+    c2.text(mid, top, '$10.1 < \log M_*/M_\odot < 10.3$', fontsize=25, horizontalalignment='center')
+    c3.text(mid, top, '$10.5 < \log M_*/M_\odot < 10.7$', fontsize=25, horizontalalignment='center')
 
     for i,label in enumerate(labels):
         grid[i*ncols + ncols-1].text(20, lheight, label, fontsize=fs,
