@@ -790,6 +790,45 @@ def HOD_wrapper(df, test_gals, box_size):
     return results
 
 
+def radial_conformity(gals, msmin, msmax, red_cut=-11, col='ssfr'):
+    """
+    Calculates quenched fraction of satellites of quenched/star-forming
+    centrals binned by radius.
+    """
+    rmin, rmax, nrbins = 0.8, 4, 8
+    rbins = np.linspace(rmin, rmax, nrbins+1)
+    q_central_sat_counts = nrbins * [[]]
+    sf_central_sat_counts = nrbins * [[]]
+    centrals = gals[gals['upid'] == -1]
+    centrals = centrals[np.where((centrals['mstar'] > msmin) &
+                                 (centrals['mstar'] < msmax))[0]]
+    satellites = gals[gals['upid'] != -1]
+
+    sat_pos = make_pos(satellites)
+    with fast3tree(sat_pos) as tree:
+        for c_pos, c_color, c_id in zip(centrals[list('xyz')], centrals[col],
+                                        centrals['id']):
+            idx, pos = tree.query_radius(c_pos, rmax, output='both')
+            neighbors = satellites[idx]
+            subs = np.where(neighbors['upid'] == c_id)[0]
+            for subidx in subs:
+                distance = get_3d_distance(c_pos, pos)
+                if distance < rmin:
+                    continue
+                rbin = np.digitize([distance], rbins, right=True)[0]
+                sat_red = neighbors[subidx][col] < red_cut
+                if c_color < red_cut:
+                    q_central_sat_counts[rbin].append(sat_red)
+                else:
+                    sf_central_sat_counts[rbin].append(sat_red)
+
+    def quenched_satellite_fraction(sat_counts):
+        return np.array([np.mean(count) for count in sat_counts])
+
+    return quenched_satellite_fraction(q_central_sat_counts), \
+        quenched_satellite_fraction(sf_central_sat_counts)
+
+
 def conformity(gals, msmin, msmax, red_cut=-11, col='ssfr'):
     """
     Calculates quenched fraction of satellites of quenched/star-forming centrals.
@@ -812,7 +851,7 @@ def conformity(gals, msmin, msmax, red_cut=-11, col='ssfr'):
 
 
 def conformity_wrapper(gals, box_size, msmin, msmax, red_cut=-11,
-                       cols=['ssfr', 'pred']):
+                       cols=['ssfr', 'pred'], conformity=radial_conformity):
     octants = util.jackknife_octant_samples(gals, box_size)
     results = []
     predictions = []
@@ -821,10 +860,12 @@ def conformity_wrapper(gals, box_size, msmin, msmax, red_cut=-11,
         predictions.append(conformity(sample, msmin, msmax, red_cut, cols[1]))
     red_fqs, blue_fqs = zip(*results)
     red_fqs_pred, blue_fqs_pred = zip(*predictions)
-    actual = np.mean(red_fqs), np.mean(blue_fqs)
-    pred = np.mean(red_fqs_pred), np.mean(blue_fqs_pred)
-    actual_err = np.std(red_fqs), np.std(blue_fqs)
-    pred_err = np.std(red_fqs_pred), np.std(blue_fqs_pred)
+    actual = np.mean(red_fqs, axis=0), np.mean(blue_fqs, axis=0)
+    pred = np.mean(red_fqs_pred, axis=0), np.mean(blue_fqs_pred, axis=0)
+    actual_err = np.std(np.cov(red_fqs, rowvar=0, bias=1)), \
+        np.std(np.cov(blue_fqs, rowvar=0, bias=1))
+    pred_err = np.std(np.cov(red_fqs_pred, rowvar=0, bias=1)), \
+        np.std(np.cov(blue_fqs_pred, rowvar=0, bias=1))
     return actual, pred, actual_err, pred_err
 
 
