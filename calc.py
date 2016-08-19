@@ -790,15 +790,15 @@ def HOD_wrapper(df, test_gals, box_size):
     return results
 
 
-def radial_conformity(gals, msmin, msmax, red_cut=-11, col='ssfr'):
+def radial_conformity(gals, msmin, msmax, box_size, red_cut=-11, col='ssfr'):
     """
     Calculates quenched fraction of satellites of quenched/star-forming
     centrals binned by radius.
     """
-    rmin, rmax, nrbins = 0.8, 4, 8
+    rmin, rmax, nrbins = 0.8, 4.0, 8
     rbins = np.linspace(rmin, rmax, nrbins+1)
-    q_central_sat_counts = nrbins * [[]]
-    sf_central_sat_counts = nrbins * [[]]
+    q_central_sat_counts = [[] for _ in xrange(nrbins)]
+    sf_central_sat_counts = [[] for _ in xrange(nrbins)]
     centrals = gals[gals['upid'] == -1]
     centrals = centrals[np.where((centrals['mstar'] > msmin) &
                                  (centrals['mstar'] < msmax))[0]]
@@ -806,17 +806,15 @@ def radial_conformity(gals, msmin, msmax, red_cut=-11, col='ssfr'):
 
     sat_pos = make_pos(satellites)
     with fast3tree(sat_pos) as tree:
-        for c_pos, c_color, c_id in zip(centrals[list('xyz')], centrals[col],
+        for c_pos, c_color, c_id in zip(centrals[list('xyz')], centrals['ssfr'],
                                         centrals['id']):
-            idx, pos = tree.query_radius(c_pos, rmax, output='both')
-            neighbors = satellites[idx]
-            subs = np.where(neighbors['upid'] == c_id)[0]
-            for subidx in subs:
-                distance = get_3d_distance(c_pos, pos)
-                if distance < rmin:
+            idx, pos = tree.query_radius(list(c_pos), rmax, periodic=box_size, output='both')
+            distances = get_3d_distance(c_pos, pos, box_size)
+            for ii, dist in zip(idx, distances):
+                if dist < rmin or dist > rmax:
                     continue
-                rbin = np.digitize([distance], rbins, right=True)[0]
-                sat_red = neighbors[subidx][col] < red_cut
+                rbin = np.digitize([dist], rbins, right=True)[0] - 1
+                sat_red = satellites[ii][col] < red_cut
                 if c_color < red_cut:
                     q_central_sat_counts[rbin].append(sat_red)
                 else:
@@ -855,17 +853,18 @@ def conformity_wrapper(gals, box_size, msmin, msmax, red_cut=-11,
     octants = util.jackknife_octant_samples(gals, box_size)
     results = []
     predictions = []
-    for sample in octants:
-        results.append(conformity(sample, msmin, msmax, red_cut, cols[0]))
-        predictions.append(conformity(sample, msmin, msmax, red_cut, cols[1]))
+    for i, sample in enumerate(octants):
+        print i
+        results.append(conformity(sample, msmin, msmax, box_size, red_cut, cols[0]))
+        predictions.append(conformity(sample, msmin, msmax, box_size, red_cut, cols[1]))
     red_fqs, blue_fqs = zip(*results)
     red_fqs_pred, blue_fqs_pred = zip(*predictions)
     actual = np.mean(red_fqs, axis=0), np.mean(blue_fqs, axis=0)
     pred = np.mean(red_fqs_pred, axis=0), np.mean(blue_fqs_pred, axis=0)
-    actual_err = np.std(np.cov(red_fqs, rowvar=0, bias=1)), \
-        np.std(np.cov(blue_fqs, rowvar=0, bias=1))
-    pred_err = np.std(np.cov(red_fqs_pred, rowvar=0, bias=1)), \
-        np.std(np.cov(blue_fqs_pred, rowvar=0, bias=1))
+    actual_err = np.sqrt(np.diag(np.cov(red_fqs, rowvar=0, bias=1))), \
+        np.sqrt(np.diag(np.cov(blue_fqs, rowvar=0, bias=1)))
+    pred_err = np.sqrt(np.diag(np.cov(red_fqs_pred, rowvar=0, bias=1))), \
+        np.sqrt(np.diag(np.cov(blue_fqs_pred, rowvar=0, bias=1)))
     return actual, pred, actual_err, pred_err
 
 

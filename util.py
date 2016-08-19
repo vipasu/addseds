@@ -98,7 +98,7 @@ def jackknife_octant_samples(gals, box_size):
         else:
             z_sel = np.where(gals['z'] < half_box_size)[0]
         remove = reduce(np.intersect1d, (x_sel, y_sel, z_sel))
-        return np.delete(gals, sel), gals[remove]
+        return np.delete(gals, remove), gals[remove]
 
     samples = []
     for x in [0, 1]:
