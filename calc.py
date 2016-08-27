@@ -790,23 +790,24 @@ def HOD_wrapper(df, test_gals, box_size):
     return results
 
 
-def radial_conformity(gals, msmin, msmax, box_size, red_cut=-11, col='ssfr'):
+def radial_conformity(gals, msmin, msmax, box_size, rbins, red_cut=-11, col='ssfr'):
     """
     Calculates quenched fraction of satellites of quenched/star-forming
     centrals binned by radius.
     """
-    rmin, rmax, nrbins = 0.8, 4.0, 8
-    rbins = np.linspace(rmin, rmax, nrbins+1)
-    q_central_sat_counts = [[] for _ in xrange(nrbins)]
-    sf_central_sat_counts = [[] for _ in xrange(nrbins)]
+    rmin, rmax = np.min(rbins), np.max(rbins)
+    nrbins = len(rbins) - 1
+    all_central_nbr_counts = [[] for _ in xrange(nrbins)]
+    q_central_nbr_counts = [[] for _ in xrange(nrbins)]
+    sf_central_nbr_counts = [[] for _ in xrange(nrbins)]
     centrals = gals[gals['upid'] == -1]
     centrals = centrals[np.where((centrals['mstar'] > msmin) &
                                  (centrals['mstar'] < msmax))[0]]
-    satellites = gals[gals['upid'] != -1]
+    # satellites = gals[gals['upid'] != -1]
 
-    sat_pos = make_pos(satellites)
-    with fast3tree(sat_pos) as tree:
-        for c_pos, c_color, c_id in zip(centrals[list('xyz')], centrals['ssfr'],
+    cent_pos = make_pos(centrals)
+    with fast3tree(cent_pos) as tree:
+        for c_pos, c_color, c_id in zip(centrals[list('xyz')], centrals[col],
                                         centrals['id']):
             idx, pos = tree.query_radius(list(c_pos), rmax, periodic=box_size, output='both')
             distances = get_3d_distance(c_pos, pos, box_size)
@@ -814,17 +815,19 @@ def radial_conformity(gals, msmin, msmax, box_size, red_cut=-11, col='ssfr'):
                 if dist < rmin or dist > rmax:
                     continue
                 rbin = np.digitize([dist], rbins, right=True)[0] - 1
-                sat_red = satellites[ii][col] < red_cut
+                nbr_red = centrals[ii][col] < red_cut
                 if c_color < red_cut:
-                    q_central_sat_counts[rbin].append(sat_red)
+                    q_central_nbr_counts[rbin].append(nbr_red)
                 else:
-                    sf_central_sat_counts[rbin].append(sat_red)
+                    sf_central_nbr_counts[rbin].append(nbr_red)
+                all_central_nbr_counts[rbin].append(nbr_red)
 
-    def quenched_satellite_fraction(sat_counts):
-        return np.array([np.mean(count) for count in sat_counts])
+    def quenched_neighbor_fraction(nbr_counts):
+        return np.array([np.mean(count) for count in nbr_counts])
 
-    return quenched_satellite_fraction(q_central_sat_counts), \
-        quenched_satellite_fraction(sf_central_sat_counts)
+    return quenched_neighbor_fraction(q_central_nbr_counts), \
+        quenched_neighbor_fraction(sf_central_nbr_counts), \
+        quenched_neighbor_fraction(all_central_nbr_counts)
 
 
 def conformity(gals, msmin, msmax, red_cut=-11, col='ssfr'):
@@ -853,19 +856,24 @@ def conformity_wrapper(gals, box_size, msmin, msmax, red_cut=-11,
     octants = util.jackknife_octant_samples(gals, box_size)
     results = []
     predictions = []
+    rmin, rmax, nrbins = 0.1, 10.0, 10
+    rbins = np.logspace(np.log10(rmin), np.log10(rmax), nrbins+1)
+    r = np.sqrt(rbins[1:] * rbins[:-1])
     for i, sample in enumerate(octants):
         print i
-        results.append(conformity(sample, msmin, msmax, box_size, red_cut, cols[0]))
-        predictions.append(conformity(sample, msmin, msmax, box_size, red_cut, cols[1]))
-    red_fqs, blue_fqs = zip(*results)
-    red_fqs_pred, blue_fqs_pred = zip(*predictions)
-    actual = np.mean(red_fqs, axis=0), np.mean(blue_fqs, axis=0)
-    pred = np.mean(red_fqs_pred, axis=0), np.mean(blue_fqs_pred, axis=0)
+        results.append(conformity(sample, msmin, msmax, box_size, rbins, red_cut, cols[0]))
+        predictions.append(conformity(sample, msmin, msmax, box_size, rbins, red_cut, cols[1]))
+    red_fqs, blue_fqs, all_fqs = zip(*results)
+    red_fqs_pred, blue_fqs_pred, all_fqs_pred = zip(*predictions)
+    actual = np.mean(red_fqs, axis=0), np.mean(blue_fqs, axis=0), np.mean(all_fqs, axis=0)
+    pred = np.mean(red_fqs_pred, axis=0), np.mean(blue_fqs_pred, axis=0), np.mean(all_fqs_pred, axis=0)
     actual_err = np.sqrt(np.diag(np.cov(red_fqs, rowvar=0, bias=1))), \
-        np.sqrt(np.diag(np.cov(blue_fqs, rowvar=0, bias=1)))
+        np.sqrt(np.diag(np.cov(blue_fqs, rowvar=0, bias=1))), \
+        np.sqrt(np.diag(np.cov(all_fqs, rowvar=0, bias=1)))
     pred_err = np.sqrt(np.diag(np.cov(red_fqs_pred, rowvar=0, bias=1))), \
+        np.sqrt(np.diag(np.cov(blue_fqs_pred, rowvar=0, bias=1))), \
         np.sqrt(np.diag(np.cov(blue_fqs_pred, rowvar=0, bias=1)))
-    return actual, pred, actual_err, pred_err
+    return r, actual, pred, actual_err, pred_err
 
 
 def radial_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
