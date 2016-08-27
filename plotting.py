@@ -317,7 +317,6 @@ def annotate_rwp_msbins(grid, labels, ncols=3, fs=40, mid=1.7, top=1430, lheight
     return grid
 
 
-
 def annotate_radial_profile(grid, label='Text'):
     """
     Provides mass and population labels for radial profile of centrals around
@@ -386,6 +385,31 @@ def plot_quenched_fraction_vs_density(name, log_dir, ax=None):
         ax.plot(d, fq, '--', color=col, alpha=0.6)
     ax.legend(loc=3, fontsize=20)
     return style_plots(ax)
+
+
+def plot_conformity(name, log_dir, ax=None, legend=True):
+    if ax is None:
+        ax = plt.gca()
+
+    r, actual, pred, a_err, p_err = util.load_data(name, log_dir)
+    ax.errorbar(r, actual[0], yerr=a_err[0], color=red_col,
+                 label='Red centrals')
+    ax.errorbar(r, actual[1], yerr=a_err[1], color=blue_col,
+                 label='Blue centrals')
+    ax.errorbar(r, actual[2], yerr=a_err[2], color='k',
+                 label='All centrals')
+    ax.errorbar(r, pred[0], yerr=p_err[0], color=red_col, linestyle='--')
+    ax.errorbar(r, pred[1], yerr=p_err[1], color=blue_col, linestyle='--')
+    ax.errorbar(r, pred[2], yerr=p_err[2], color='k', linestyle='--')
+    ax.set_xscale('log')
+    ax.set_xlabel('r [Mpc/h]')
+    ax.set_ylabel('Quenched Fraction')
+    ax.set_ylim(0.0, 1.1)
+    ax.set_xlim(0.1, 20)
+    if legend:
+        ax.legend(loc='best')
+    return style_plots(ax)
+
 
 
 def plot_twin_contour(ax, dist, ssfr, extent,log=True):
