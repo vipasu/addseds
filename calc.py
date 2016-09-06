@@ -790,7 +790,8 @@ def HOD_wrapper(df, test_gals, box_size):
     return results
 
 
-def radial_conformity(gals, msmin, msmax, box_size, rbins, red_cut=-11, col='ssfr'):
+def radial_conformity(centrals, neighbors, msmin, msmax, box_size, rbins,
+        satellites=False, red_cut=-11, col='ssfr'):
     """
     Calculates quenched fraction of satellites of quenched/star-forming
     centrals binned by radius.
@@ -800,18 +801,17 @@ def radial_conformity(gals, msmin, msmax, box_size, rbins, red_cut=-11, col='ssf
     all_central_nbr_counts = [[] for _ in xrange(nrbins)]
     q_central_nbr_counts = [[] for _ in xrange(nrbins)]
     sf_central_nbr_counts = [[] for _ in xrange(nrbins)]
-    centrals = gals[gals['upid'] == -1]
-    centrals = centrals[np.where((centrals['mstar'] > msmin) &
-                                 (centrals['mstar'] < msmax))[0]]
-    # satellites = gals[gals['upid'] != -1]
 
-    cent_pos = make_pos(centrals)
-    with fast3tree(cent_pos) as tree:
+    n_pos = make_pos(neighbors)
+    with fast3tree(neighbors) as tree:
         for c_pos, c_color, c_id in zip(centrals[list('xyz')], centrals[col],
                                         centrals['id']):
             idx, pos = tree.query_radius(list(c_pos), rmax, periodic=box_size, output='both')
             distances = get_3d_distance(c_pos, pos, box_size)
             for ii, dist in zip(idx, distances):
+                if satellites:
+                    if neighbors['upid'] is not c_id:
+                        continue
                 if dist < rmin or dist > rmax:
                     continue
                 rbin = np.digitize([dist], rbins, right=True)[0] - 1
@@ -830,9 +830,41 @@ def radial_conformity(gals, msmin, msmax, box_size, rbins, red_cut=-11, col='ssf
         quenched_neighbor_fraction(all_central_nbr_counts)
 
 
-def conformity(gals, msmin, msmax, red_cut=-11, col='ssfr'):
+def radial_conformity_wrapper(gals, box_size, msmin, msmax, red_cut=-11,
+                              cols=['ssfr', 'pred']):
+    octants = util.jackknife_octant_samples(gals, box_size)
+    results = []
+    predictions = []
+    rmin, rmax, nrbins = 0.1, 10.0, 10
+    rbins = np.logspace(np.log10(rmin), np.log10(rmax), nrbins+1)
+    r = np.sqrt(rbins[1:] * rbins[:-1])
+    for i, sample in enumerate(octants):
+        centrals = sample[sample['upid'] == -1]
+        centrals = centrals[np.where((centrals['mstar'] > msmin) &
+                                     (centrals['mstar'] < msmax))[0]]
+
+        print i
+        results.append(radial_conformity(centrals, centrals, msmin, msmax, box_size, rbins,
+                                         red_cut, cols[0]))
+        predictions.append(radial_conformity(centrals, centrals, msmin, msmax, box_size,
+                                             rbins, red_cut, cols[1]))
+    red_fqs, blue_fqs, all_fqs = zip(*results)
+    red_fqs_pred, blue_fqs_pred, all_fqs_pred = zip(*predictions)
+    actual = np.mean(red_fqs, axis=0), np.mean(blue_fqs, axis=0), np.mean(all_fqs, axis=0)
+    pred = np.mean(red_fqs_pred, axis=0), np.mean(blue_fqs_pred, axis=0), np.mean(all_fqs_pred, axis=0)
+    actual_err = np.sqrt(np.diag(np.cov(red_fqs, rowvar=0, bias=1))), \
+        np.sqrt(np.diag(np.cov(blue_fqs, rowvar=0, bias=1))), \
+        np.sqrt(np.diag(np.cov(all_fqs, rowvar=0, bias=1)))
+    pred_err = np.sqrt(np.diag(np.cov(red_fqs_pred, rowvar=0, bias=1))), \
+        np.sqrt(np.diag(np.cov(blue_fqs_pred, rowvar=0, bias=1))), \
+        np.sqrt(np.diag(np.cov(blue_fqs_pred, rowvar=0, bias=1)))
+    return r, actual, pred, actual_err, pred_err
+
+
+def satellite_conformity(gals, msmin, msmax, red_cut=-11, col='ssfr'):
     """
     Calculates quenched fraction of satellites of quenched/star-forming centrals.
+    Only gives the overall fraction (does not include radial dependence)
     """
     centrals = gals[gals['upid'] == -1]
     centrals = centrals[np.where((centrals['mstar'] > msmin) &
@@ -851,8 +883,8 @@ def conformity(gals, msmin, msmax, red_cut=-11, col='ssfr'):
         quenched_satellite_fraction(blue_c)
 
 
-def conformity_wrapper(gals, box_size, msmin, msmax, red_cut=-11,
-                       cols=['ssfr', 'pred'], conformity=radial_conformity):
+def satllite_conformity_wrapper(gals, msmin, msmax, red_cut=-11,
+                                cols=['ssfr', 'pred']):
     octants = util.jackknife_octant_samples(gals, box_size)
     results = []
     predictions = []
@@ -860,9 +892,16 @@ def conformity_wrapper(gals, box_size, msmin, msmax, red_cut=-11,
     rbins = np.logspace(np.log10(rmin), np.log10(rmax), nrbins+1)
     r = np.sqrt(rbins[1:] * rbins[:-1])
     for i, sample in enumerate(octants):
+        centrals = sample[sample['upid'] == -1]
+        centrals = centrals[np.where((centrals['mstar'] > msmin) &
+                                     (centrals['mstar'] < msmax))[0]]
+        satellites = sample[sample['upid'] != -1]
+
         print i
-        results.append(conformity(sample, msmin, msmax, box_size, rbins, red_cut, cols[0]))
-        predictions.append(conformity(sample, msmin, msmax, box_size, rbins, red_cut, cols[1]))
+        results.append(radial_conformity(centrals, satellites, msmin, msmax, box_size, rbins,
+                                         True, red_cut, cols[0]))
+        predictions.append(radial_conformity(centrals, satellites, msmin, msmax, box_size,
+                                             rbins, True, red_cut, cols[1]))
     red_fqs, blue_fqs, all_fqs = zip(*results)
     red_fqs_pred, blue_fqs_pred, all_fqs_pred = zip(*predictions)
     actual = np.mean(red_fqs, axis=0), np.mean(blue_fqs, axis=0), np.mean(all_fqs, axis=0)
@@ -873,7 +912,7 @@ def conformity_wrapper(gals, box_size, msmin, msmax, red_cut=-11,
     pred_err = np.sqrt(np.diag(np.cov(red_fqs_pred, rowvar=0, bias=1))), \
         np.sqrt(np.diag(np.cov(blue_fqs_pred, rowvar=0, bias=1))), \
         np.sqrt(np.diag(np.cov(blue_fqs_pred, rowvar=0, bias=1)))
-    return r, actual, pred, actual_err, pred_err
+    return actual, pred, actual_err, pred_err
 
 
 def radial_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
