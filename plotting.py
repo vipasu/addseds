@@ -392,15 +392,18 @@ def plot_conformity(name, log_dir, ax=None, legend=True):
         ax = plt.gca()
 
     r, actual, pred, a_err, p_err = util.load_data(name, log_dir)
-    ax.errorbar(r, actual[0], yerr=a_err[0], color=red_col,
+    ax.errorbar(r, actual[0] - a_err[0], actual[0] + a_err[0], color=red_col,
                  label='Red centrals')
-    ax.errorbar(r, actual[1], yerr=a_err[1], color=blue_col,
+    ax.errorbar(r, actual[1] - a_err[1], actual[1] + a_err[1], color=blue_col,
                  label='Blue centrals')
-    ax.errorbar(r, actual[2], yerr=a_err[2], color='k',
+    ax.errorbar(r, actual[2] - a_err[2], actual[2] + a_err[2], color='k',
                  label='All centrals')
-    ax.errorbar(r, pred[0], yerr=p_err[0], color=red_col, linestyle='--')
-    ax.errorbar(r, pred[1], yerr=p_err[1], color=blue_col, linestyle='--')
-    ax.errorbar(r, pred[2], yerr=p_err[2], color='k', linestyle='--')
+    ax.errorbar(r, pred[0] - p_err[0], pred[0] + p_err[0], color=red_col,
+                linestyle='--', alpha=0.3)
+    ax.errorbar(r, pred[1] - p_err[1], pred[1] + p_err[1], color=blue_col,
+                linestyle='--', alpha=0.3)
+    ax.errorbar(r, pred[2] - p_err[2], pred[2] + p_err[2], color='k',
+                linestyle='--', alpha=0.3)
     ax.set_xscale('log')
     ax.set_xlabel('r [Mpc/h]')
     ax.set_ylabel('Quenched Fraction')

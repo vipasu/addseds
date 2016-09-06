@@ -803,7 +803,7 @@ def radial_conformity(centrals, neighbors, msmin, msmax, box_size, rbins,
     sf_central_nbr_counts = [[] for _ in xrange(nrbins)]
 
     n_pos = make_pos(neighbors)
-    with fast3tree(neighbors) as tree:
+    with fast3tree(n_pos) as tree:
         for c_pos, c_color, c_id in zip(centrals[list('xyz')], centrals[col],
                                         centrals['id']):
             idx, pos = tree.query_radius(list(c_pos), rmax, periodic=box_size, output='both')
@@ -912,7 +912,7 @@ def satellite_conformity_wrapper(gals, box_size, msmin, msmax, red_cut=-11,
     pred_err = np.sqrt(np.diag(np.cov(red_fqs_pred, rowvar=0, bias=1))), \
         np.sqrt(np.diag(np.cov(blue_fqs_pred, rowvar=0, bias=1))), \
         np.sqrt(np.diag(np.cov(blue_fqs_pred, rowvar=0, bias=1)))
-    return actual, pred, actual_err, pred_err
+    return r, actual, pred, actual_err, pred_err
 
 
 def radial_profile_counts(gals, hosts, box_size, r, rbins, rmax, col='ssfr'):
