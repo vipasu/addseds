@@ -845,9 +845,9 @@ def radial_conformity_wrapper(gals, box_size, msmin, msmax, red_cut=-11,
 
         print i
         results.append(radial_conformity(centrals, centrals, msmin, msmax, box_size, rbins,
-                                         red_cut, cols[0]))
+                                         False, red_cut, cols[0]))
         predictions.append(radial_conformity(centrals, centrals, msmin, msmax, box_size,
-                                             rbins, red_cut, cols[1]))
+                                             rbins, False, red_cut, cols[1]))
     red_fqs, blue_fqs, all_fqs = zip(*results)
     red_fqs_pred, blue_fqs_pred, all_fqs_pred = zip(*predictions)
     actual = np.mean(red_fqs, axis=0), np.mean(blue_fqs, axis=0), np.mean(all_fqs, axis=0)
@@ -883,7 +883,7 @@ def satellite_conformity(gals, msmin, msmax, red_cut=-11, col='ssfr'):
         quenched_satellite_fraction(blue_c)
 
 
-def satllite_conformity_wrapper(gals, msmin, msmax, red_cut=-11,
+def satellite_conformity_wrapper(gals, box_size, msmin, msmax, red_cut=-11,
                                 cols=['ssfr', 'pred']):
     octants = util.jackknife_octant_samples(gals, box_size)
     results = []
