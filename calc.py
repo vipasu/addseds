@@ -809,8 +809,9 @@ def radial_conformity(centrals, neighbors, msmin, msmax, box_size, rbins,
             idx, pos = tree.query_radius(list(c_pos), rmax, periodic=box_size, output='both')
             distances = get_3d_distance(c_pos, pos, box_size)
             for ii, dist in zip(idx, distances):
+                #print dist
                 if satellites:
-                    if neighbors['upid'] is not c_id:
+                    if neighbors[ii]['upid'] is not c_id:
                         continue
                 if dist < rmin or dist > rmax:
                     continue
@@ -874,13 +875,14 @@ def satellite_conformity(gals, msmin, msmax, red_cut=-11, col='ssfr'):
 
     def quenched_satellite_fraction(cents):
         ids = set(cents['id'])
-        sats = gals[gals['upid'] in ids]
+        sats = gals[[i in ids for i in gals['upid']]]
         ssfrs = sats[col]
         f_q = np.mean(ssfrs < red_cut)
         return f_q
 
     return quenched_satellite_fraction(red_c), \
-        quenched_satellite_fraction(blue_c)
+        quenched_satellite_fraction(blue_c), \
+        quenched_satellite_fraction(centrals)
 
 
 def satellite_conformity_wrapper(gals, box_size, msmin, msmax, red_cut=-11,
@@ -888,7 +890,7 @@ def satellite_conformity_wrapper(gals, box_size, msmin, msmax, red_cut=-11,
     octants = util.jackknife_octant_samples(gals, box_size)
     results = []
     predictions = []
-    rmin, rmax, nrbins = 0.1, 10.0, 10
+    rmin, rmax, nrbins = 0.01, 10.0, 10
     rbins = np.logspace(np.log10(rmin), np.log10(rmax), nrbins+1)
     r = np.sqrt(rbins[1:] * rbins[:-1])
     for i, sample in enumerate(octants):
@@ -896,12 +898,16 @@ def satellite_conformity_wrapper(gals, box_size, msmin, msmax, red_cut=-11,
         centrals = centrals[np.where((centrals['mstar'] > msmin) &
                                      (centrals['mstar'] < msmax))[0]]
         satellites = sample[sample['upid'] != -1]
+        #print len(np.where(satellites['upid'] in centrals['id'])[0])
 
         print i
-        results.append(radial_conformity(centrals, satellites, msmin, msmax, box_size, rbins,
-                                         True, red_cut, cols[0]))
-        predictions.append(radial_conformity(centrals, satellites, msmin, msmax, box_size,
-                                             rbins, True, red_cut, cols[1]))
+#        results.append(radial_conformity(centrals, satellites, msmin, msmax, box_size, rbins,
+#                                         True, red_cut, cols[0]))
+#        predictions.append(radial_conformity(centrals, satellites, msmin, msmax, box_size,
+#                                             rbins, True, red_cut, cols[1]))
+        results.append(satellite_conformity(sample, msmin, msmax, red_cut, cols[0]))
+        predictions.append(satellite_conformity(sample, msmin, msmax, red_cut, cols[1]))
+    print results
     red_fqs, blue_fqs, all_fqs = zip(*results)
     red_fqs_pred, blue_fqs_pred, all_fqs_pred = zip(*predictions)
     actual = np.mean(red_fqs, axis=0), np.mean(blue_fqs, axis=0), np.mean(all_fqs, axis=0)
