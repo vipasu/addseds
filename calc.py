@@ -27,6 +27,7 @@ def make_pos(gals, pos_tags=['x', 'y', 'z']):
     pos = np.zeros((len(gals[pos_tags[0]]), 3))
     for i, tag in enumerate(pos_tags):
         pos[:, i] = gals[tag][:]
+
     return pos
 
 
@@ -70,9 +71,11 @@ def get_projected_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
                 print "Insufficient number of neighbors in redshift bin"
                 print "redshift: ", gal_z[i]
                 assert False
-            r, ind = get_nearest_nbr_periodic(center, tree, box_size,
-                                              num_neighbors=nn,
-                                              exclude_self=True)
+            if box_size < 0:
+                r, ind = get_nearest_nbr_periodic(center, tree, box_size,
+                                                  num_neighbors=nn)
+            else:
+                r, ind = get_nearest_nbr(center, tree)
             dnbr[i] = np.log10(r)
             for j, attr in enumerate(attrs):
                 res[j][i] = hosts[attr][sel][ind]
@@ -105,8 +108,7 @@ def get_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
             center = [gals[tag][i] for tag in pos_tags]
             if box_size > 0:
                 r, ind = get_nearest_nbr_periodic(center, tree, box_size,
-                                                  num_neighbors=nn,
-                                                  exclude_self=True)
+                                                  num_neighbors=nn)
             else:
                 r, ind = get_nearest_nbr(center, tree)
             dnbr[i] = np.log10(r)

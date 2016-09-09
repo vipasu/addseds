@@ -52,8 +52,7 @@ def load_massive_halo_positions():
 
     combined = np.row_stack(dats)
     types = zip(['gmass', 'Ngal', 'x', 'y', 'z', 'zr'], 6 * ['<f8'])
-    combined.dtype = types
-    return combined
+    return combined.view(dtype=types).reshape(len(combined))
 
 
 def load_galaxy_catalog():
@@ -74,13 +73,19 @@ def load_galaxy_catalog():
 
     combined = np.row_stack(dats)
     types = zip(['gmass', 'Ngal', 'x', 'y', 'z', 'zr'], 6 * ['<f8'])
-    combined.dtype = types
-    return combined
+    return combined.view(dtype=types).reshape(len(combined))
 
 
 def calculate_Sigma_mass_N_gal():
+    print "Loading galaxies"
     gals = load_galaxy_catalog()
+    print "Loading groups"
     groups = load_massive_halo_positions()
     massive_selection = np.where(groups['gmass'] > 5e12)[0]
+    print "Number of massive groups: ", len(massive_selection)
     groups = groups[massive_selection]
+    print "calculating dists"
     c.get_projected_dist_and_attrs(groups, gals, 1, ['Ngal'], box_size=-1)
+    print "done"
+
+calculate_Sigma_mass_N_gal()
