@@ -103,9 +103,12 @@ def get_dist_and_attrs(hosts, gals, nn, attrs, box_size=250.0):
             if i % 10000 == 0:
                 print i, N
             center = [gals[tag][i] for tag in pos_tags]
-            r, ind = get_nearest_nbr_periodic(center, tree, box_size,
-                                              num_neighbors=nn,
-                                              exclude_self=True)
+            if box_size > 0:
+                r, ind = get_nearest_nbr_periodic(center, tree, box_size,
+                                                  num_neighbors=nn,
+                                                  exclude_self=True)
+            else:
+                r, ind = get_nearest_nbr(center, tree)
             dnbr[i] = np.log10(r)
             for j, attr in enumerate(attrs):
                 res[j][i] = hosts[attr][ind]
@@ -168,6 +171,17 @@ def get_3d_distance(center, pos, box_size=-1):
     dz = get_distance(center[2], pos[:, 2], box_size=box_size)
     r2 = dx*dx + dy*dy + dz*dz
     return np.sqrt(r2)
+
+
+def get_nearest_nbr(center, tree):
+    """
+    Simply returns the nearest neighbor without boundary conditions
+    """
+    rfid = tree.query_nearest_distance(center)
+    idx, pos = tree.query_radius(center, rfid, periodic=box_size,
+                                    output='both')
+    assert len(idx) == 1
+    return get_3d_distance(center, pos, box_size=-1), idx
 
 
 def get_nearest_nbr_periodic(center, tree, box_size, num_neighbors=1):
@@ -534,7 +548,7 @@ def get_all_neighbors(pos, center, box_size):
 
 def calculate_clustering_score(gals, box_size, pos_tags=['x','y','zp'], rbins=[0,1,10]):
     """
-    Counts the number of pairs in different radii bins
+    Counts the number of pairs in different bins of cylindrical annuli
     """
     N = len(gals)
     pos = make_pos(gals, pos_tags)
