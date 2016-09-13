@@ -2,7 +2,9 @@ import numpy as np
 import calc as c
 from astropy.coordinates import SkyCoord, Distance
 from astropy.cosmology import WMAP9
+import model
 import astropy.units as u
+import util
 
 data_dir = '/nfs/slac/g/ki/ki23/des/jderose/observation/sdss/vagcgroups/data/'
 prefix = 'clf_groups_M'
@@ -72,20 +74,36 @@ def load_galaxy_catalog():
         dats.append(np.column_stack([ssfr, mstar, x, y, z, zr]))
 
     combined = np.row_stack(dats)
-    types = zip(['gmass', 'Ngal', 'x', 'y', 'z', 'zr'], 6 * ['<f8'])
+    types = zip(['ssfr', 'mstar', 'x', 'y', 'z', 'zr'], 6 * ['<f8'])
     return combined.view(dtype=types).reshape(len(combined))
 
 
-def calculate_Sigma_mass_N_gal():
-    print "Loading galaxies"
-    gals = load_galaxy_catalog()
-    print "Loading groups"
-    groups = load_massive_halo_positions()
+def calculate_Sigma_mass_N_gal(gals, groups):
     massive_selection = np.where(groups['gmass'] > 5e12)[0]
     print "Number of massive groups: ", len(massive_selection)
     groups = groups[massive_selection]
     print "calculating dists"
-    c.get_projected_dist_and_attrs(groups, gals, 1, ['Ngal'], box_size=-1)
+    res = c.get_projected_dist_and_attrs(groups, gals, 1, ['Ngal'], box_size=-1)
     print "done"
+    return res
 
-calculate_Sigma_mass_N_gal()
+print "Loading galaxies"
+gals = load_galaxy_catalog()
+print "Loading groups"
+groups = load_massive_halo_positions()
+dist, res = calculate_Sigma_mass_N_gal(gals, groups)
+ngal = res[0]
+
+gals = util.add_column(gals, 'smass', dist)
+gals = util.add_column(gals, 'ngal', ngal)
+features = ['ngal', 'smass', 'mstar']
+target = 'ssfr'
+d_train, d_test, regressor = model.trainRegressor(gals, features,
+                                                  target, scaled=False)
+
+y = gals['ssfr']
+y_hat = regressor.predict(util.select_features(features, gals, target=target,
+                                               scaled=False)[0])
+np.save('sdss_ssfr', y)
+np.save('sdss_pred', y_hat)
+
