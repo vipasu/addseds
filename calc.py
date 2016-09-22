@@ -11,6 +11,7 @@ from numpy.linalg import pinv, inv
 from fast3tree import fast3tree
 import util
 from scipy.stats import rankdata
+from halotools.mock_observables import wp, return_xyz_formatted_array
 
 h = 0.7
 zmax = 40.0
@@ -501,6 +502,32 @@ def shuffle_mcf(gals, x='ssfr', y='mstar', box_size=250.0,
     mean = np.mean(mcfs, axis=0)
     error = np.sqrt(np.diag(np.cov(mcfs, rowvar=0, bias=1)))
     return r, mean, error
+
+
+def cross_correlation_function(gals, red_cut, cols=['ssfr', 'pred'],
+                               box_size=250.0):
+    pi_max = 40.0
+    octants = util.jackknife_octant_samples(gals, box_size)
+    actual_wps, pred_wps = [], []
+    rp_bins = np.logspace(-1, np.log10(25), 18)
+    rp_centers = np.sqrt(rp_bins[:-1] * rp_bins[1:])
+    for octant in octants:
+        reds = gals[cols[0]] < red_cut
+        blues = gals[cols[0]] > red_cut
+        reds_pred = gals[cols[1]] < red_cut
+        blues_pred = gals[cols[1]] > red_cut
+        actual_wps.append(wp(reds, rp_bins=rp_bins, pi_max=pi_max,
+                             sample2=blues, period=box_size))
+        pred_wps.append(wp(reds_pred, rp_bins=rp_bins, pi_max=pi_max,
+                           sample2=blues_pred, period=box_size))
+
+    n_jack = len(octants)
+    true_wp = np.mean(actual_wps, axis=1)
+    pred_wp = np.mean(pred_wps, axis=1)
+    errs = np.sqrt(np.diag(np.cov(np.array(actual_wps) - np.array(pred_wps),
+                                  rowvar=0, bias=1)) * (n_jack - 1)),
+    return rp_centers, true_wp, pred_wp, errs
+
 
 
 def find_min_rhill(rs, masses, m_sec):
