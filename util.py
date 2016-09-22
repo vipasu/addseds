@@ -14,6 +14,7 @@ from scipy.stats import rankdata
 from collections import defaultdict
 from functools import reduce
 import numpy.lib.recfunctions
+from sklearn import preprocessing
 
 
 def mkdir_p(path):
@@ -351,7 +352,7 @@ def train_and_dump_rwp(gals, features, name, proxy, box_name, box_size, red_cut=
     dump_data(wprp_dat, name, log_dir)
 
 
-def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num_splits=3, red_cut=-11, logging=True, target='ssfr'):
+def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num_splits=3, red_cut=-11, logging=True, target='ssfr', mlims=None):
     """
     Trains and predicts clustering of _gals_ based on _features_ in stellar
     mass bins.
@@ -369,12 +370,15 @@ def train_and_dump_rwp_bins(gals, features, name, proxy, box_name, box_size, num
     import model
     log_dir = get_logging_dir(box_name)
     mstar_cuts = [10.0, 10.2, 10.6]
-    d_train, d_test, regressor = model.trainRegressor(gals, box_size, features,
+    d_train, d_test, regressor = model.trainRegressor(gals, features,
                                                       target=target, model=model.DecisionTreeRegressor, scaled=False)
     for i,cut in enumerate(mstar_cuts):
-        msmin, msmax = match_mstar_cut(gals, box_size, cut-.1, cut+.1)
-        print "Matching cut for ", cut-.1, cut+.1
-        print "\t ", msmin, msmax
+        if mlims is None:
+            msmin, msmax = match_mstar_cut(gals, box_size, cut-.1, cut+.1)
+            print "Matching cut for ", cut-.1, cut+.1
+            print "\t ", msmin, msmax
+        else:
+            msmin, msmax = mlims[i]
 
         mstar_sel = np.where((d_test['mstar'] < msmax) & (d_test['mstar'] > msmin))[0]
 
@@ -429,6 +433,10 @@ def load_proxies(gals, data_dir, proxy_names, dat_names):
             if len(nan_sel) > 0:
                 print "Replacing %d NaN values for %s" % (len(nan_sel), proxy)
                 vals[nan_sel] = 100
+            inf_sel = np.where(np.isinf(vals))[0]
+            if len(inf_sel) > 0:
+                print "Replacing %d inf values for %s" % (len(nan_sel), proxy)
+                vals[nan_sel] = -1
             gals = add_column(gals, proxy, vals)
     return gals
 
@@ -453,11 +461,15 @@ def label_from_proxy_name(name):
         's2':'$\Sigma_{2}$',
         's5':'$\Sigma_{5}$',
         's10':'$\Sigma_{10}$',
+        'mstar':'$M_*$',
+        'vpeak':'$V_{\mathrm{peak}}$',
     }
     if name in name_label_dict.keys():
         return name_label_dict[name]
     elif name[:3] == 'rhm':
         return r'$M/M_\odot > %s \times 10^{%s}$' %(name[3], name[5:7])
+    elif name[0] == 'c':
+        return r'$p_{%s}$' % (name[1:])
     print "failed to write name"
     return None
 
@@ -485,6 +497,11 @@ def recarray_from_npz(fname):
     dat = np.load(fname)
     return np.recarray({x : dat[x] for x in dat.files})
 
+
+def add_interaction(data, attributes):
+    a1 = data[attributes[0]]
+    a2 = data[attributes[1]]
+    return add_column(data, attributes[0] + attributes[1], a1 * a2)
 
 def add_column(arr, name, vals):
     """Appends a column to arr so it can be accessed as arr['name']"""

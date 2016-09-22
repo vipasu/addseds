@@ -585,7 +585,8 @@ def calculate_clustering_score(gals, box_size, pos_tags=['x','y','zp'], rbins=[0
     r_max = rbins[-1]
 
     with fast3tree(pos) as tree:
-        tree.set_boundaries(0.0, box_size)
+        if box_size > 0:
+            tree.set_boundaries(0.0, box_size)
         for i in xrange(N):
             if i % 10000 == 0:
                 print i, N
