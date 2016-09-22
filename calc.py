@@ -504,7 +504,7 @@ def shuffle_mcf(gals, x='ssfr', y='mstar', box_size=250.0,
     return r, mean, error
 
 
-def cross_correlation_function(gals, red_cut, cols=['ssfr', 'pred'],
+def cross_correlation_function(gals, red_cut=-11.0, cols=['ssfr', 'pred'],
                                box_size=250.0):
     pi_max = 40.0
     octants = util.jackknife_octant_samples(gals, box_size)
