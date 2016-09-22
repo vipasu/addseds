@@ -524,9 +524,9 @@ def cross_correlation_function(gals, red_cut=-11.0, cols=['ssfr', 'pred'],
         pos_red_pred = return_xyz_formatted_array(x, y, z, mask=reds_pred)
         pos_blue_pred = return_xyz_formatted_array(x, y, z, mask=blues_pred)
         actual_wps.append(wp(pos_red, rp_bins=rp_bins, pi_max=pi_max,
-                             sample2=pos_blue, period=box_size))
+                             sample2=pos_blue, period=box_size)[1])
         pred_wps.append(wp(pos_red_pred, rp_bins=rp_bins, pi_max=pi_max,
-                           sample2=pos_blue_pred, period=box_size))
+                           sample2=pos_blue_pred, period=box_size)[1])
 
     n_jack = len(octants)
     true_wp = np.mean(actual_wps, axis=1)
