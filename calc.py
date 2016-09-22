@@ -516,10 +516,17 @@ def cross_correlation_function(gals, red_cut, cols=['ssfr', 'pred'],
         blues = gals[cols[0]] > red_cut
         reds_pred = gals[cols[1]] < red_cut
         blues_pred = gals[cols[1]] > red_cut
-        actual_wps.append(wp(reds, rp_bins=rp_bins, pi_max=pi_max,
-                             sample2=blues, period=box_size))
-        pred_wps.append(wp(reds_pred, rp_bins=rp_bins, pi_max=pi_max,
-                           sample2=blues_pred, period=box_size))
+        x = gals['x']
+        y = gals['y']
+        z = gals['z']
+        pos_red = return_xyz_formatted_array(x, y, z, mask=reds)
+        pos_blue = return_xyz_formatted_array(x, y, z, mask=blues)
+        pos_red_pred = return_xyz_formatted_array(x, y, z, mask=reds_pred)
+        pos_blue_pred = return_xyz_formatted_array(x, y, z, mask=blues_pred)
+        actual_wps.append(wp(pos_red, rp_bins=rp_bins, pi_max=pi_max,
+                             sample2=pos_blue, period=box_size))
+        pred_wps.append(wp(pos_red_pred, rp_bins=rp_bins, pi_max=pi_max,
+                           sample2=pos_blue_pred, period=box_size))
 
     n_jack = len(octants)
     true_wp = np.mean(actual_wps, axis=1)
