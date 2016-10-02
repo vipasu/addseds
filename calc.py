@@ -892,13 +892,13 @@ def radial_conformity_wrapper(gals, box_size, msmin, msmax, red_cut=-11,
     r = np.sqrt(rbins[1:] * rbins[:-1])
     for i, sample in enumerate(octants):
         centrals = sample[sample['upid'] == -1]
-        centrals = centrals[np.where((centrals['mstar'] > msmin) &
+        m_centrals = centrals[np.where((centrals['mstar'] > msmin) &
                                      (centrals['mstar'] < msmax))[0]]
 
         print i
-        results.append(radial_conformity(centrals, centrals, msmin, msmax, box_size, rbins,
+        results.append(radial_conformity(m_centrals, centrals, msmin, msmax, box_size, rbins,
                                          False, red_cut, cols[0]))
-        predictions.append(radial_conformity(centrals, centrals, msmin, msmax, box_size,
+        predictions.append(radial_conformity(m_centrals, centrals, msmin, msmax, box_size,
                                              rbins, False, red_cut, cols[1]))
     red_fqs, blue_fqs, all_fqs = zip(*results)
     red_fqs_pred, blue_fqs_pred, all_fqs_pred = zip(*predictions)
